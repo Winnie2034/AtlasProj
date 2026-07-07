@@ -42,6 +42,10 @@ export class WorkoutRepository {
     return this.db.workout.count();
   }
 
+  countSince(startTime: Date) {
+    return this.db.workout.count({ where: { startTime: { gte: startTime } } });
+  }
+
   async list(params: WorkoutListParams) {
     const where: Prisma.WorkoutWhereInput = params.search
       ? { title: { contains: params.search, mode: "insensitive" } }
@@ -69,6 +73,14 @@ export class WorkoutRepository {
     return this.db.workout.findMany({
       orderBy: { startTime: "desc" },
       take: limit,
+      include: { exercises: { include: { sets: true } } },
+    });
+  }
+
+  findSince(startTime: Date) {
+    return this.db.workout.findMany({
+      where: { startTime: { gte: startTime } },
+      orderBy: { startTime: "asc" },
       include: { exercises: { include: { sets: true } } },
     });
   }

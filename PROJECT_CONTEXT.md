@@ -12,7 +12,9 @@ Atlas is a personal local workout data app for one user. It syncs workouts from 
 - No dynamic Hevy API key entry in the frontend.
 - Hevy API key is configured on the backend through `backend/.env`.
 - Frontend never calls Hevy directly.
-- Git is initialized locally for this project, but no remote was configured at the last check.
+- Git is initialized locally for this project.
+- Current branch at the last check: `master`.
+- Current remote at the last check: `origin -> https://github.com/Winnie2034/AtlasProj.git`.
 
 ## Run Command
 
@@ -74,8 +76,13 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - `backend/src/services/hevy/hevy.client.ts` - Hevy HTTP client.
 - `backend/src/services/hevy/hevy.types.ts` - Hevy response validation schemas.
 - `backend/src/services/sync.service.ts` - sync orchestration.
+- `backend/src/services/dashboard.service.ts` - dashboard summary and analytics aggregation.
 - `backend/src/services/routines.service.ts` - read-only Hevy routines loading/serialization.
 - `backend/src/routes/routines.routes.ts` - `/api/routines` backend route.
+- `frontend/src/pages/DashboardPage.tsx` - dashboard analytics UI.
+- `frontend/src/components/dashboard/SetsByMuscleGroupChart.tsx` - weekly sets-by-muscle-group chart.
+- `frontend/src/components/dashboard/TrainingDaysHeatmap.tsx` - calendar-style training-day view.
+- `frontend/src/components/settings/SyncButton.tsx` - sync trigger and top-center result toast.
 - `frontend/src/pages/RoutinesPage.tsx` - read-only routines UI.
 - `frontend/src/components/routines/RoutineCard.tsx` - routine detail card UI.
 - `frontend/src/pages/SettingsPage.tsx` - sync UI entry point.
@@ -87,7 +94,7 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - Git safety cleanup:
   - Git was initialized in `C:\Users\walec\Documents\Codex\2026-07-05\und`.
   - Last known branch after `git init` was `master`.
-  - No Git remote was configured at the last check.
+  - Remote at the last check: `origin -> https://github.com/Winnie2034/AtlasProj.git`.
   - `backend/.env` is ignored and should contain the real local `DATABASE_URL` and `HEVY_API_KEY`.
   - `backend/.env.example` contains placeholders only and is safe to commit.
   - `README.md` and this context file no longer contain the real PostgreSQL password or Hevy API key.
@@ -121,6 +128,15 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - workout/routine set type accepts `set_type` and normalizes it to `type`.
   - missing/null `exercise_template_id` is converted to `"unknown"`.
   - schema errors now include the failing field path.
+- Dashboard was expanded from a basic workout summary into an analytics page:
+  - top stat row shows total workouts, workouts this month, current streak, and last sync.
+  - main chart shows sets per muscle group per week for the last 8 weeks.
+  - recent workouts are compact and sit beside the weekly muscle-group chart.
+  - training days display as a full-width calendar-style grid with week ranges, weekday labels, day numbers, set counts, and a volume legend.
+  - sync results appear as a temporary top-center toast instead of a card below the Sync button.
+  - backend returns `workoutsThisMonth`, `currentStreakDays`, `setsByMuscleGroupPerWeek`, and `trainingDays` from `GET /api/dashboard`.
+  - muscle group classification currently uses exercise-title patterns because the local database does not store official Hevy muscle-group metadata. Unknown or ambiguous exercises fall into `Other`.
+  - Verified with `npm.cmd run typecheck`, `npm.cmd run build`, and a local browser/API smoke check against `http://localhost:5173/` and `http://localhost:4000/api/dashboard`.
 
 ## Git Workflow
 
@@ -138,11 +154,16 @@ git add .
 git commit -m "Initial Atlas project commit"
 ```
 
-To connect a remote:
+Current remote:
+
+```text
+origin -> https://github.com/Winnie2034/AtlasProj.git
+```
+
+To push the current `master` branch after committing:
 
 ```powershell
-git remote add origin YOUR_REPO_URL
-git push -u origin master
+git push origin master
 ```
 
 If the branch is renamed to `main`, push `main` instead.

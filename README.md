@@ -2,6 +2,21 @@
 
 Atlas is a single-user workout data platform that syncs Hevy workout data into PostgreSQL, exposes it through an Express API, and renders it in a React dashboard.
 
+## Current Features
+
+- Sync Hevy workout history into local PostgreSQL.
+- Browse synced workouts and workout details.
+- Browse read-only Hevy routines.
+- View dashboard analytics:
+  - total workouts
+  - workouts this month
+  - current training streak
+  - last sync status
+  - sets per muscle group per week
+  - recent workouts
+  - calendar-style training days
+- Trigger sync from the UI. Sync results show as a temporary top-center toast instead of shifting the page layout.
+
 ## Structure
 
 - `backend/` - Node.js, Express, TypeScript, Prisma
@@ -73,11 +88,19 @@ git add .
 git commit -m "Initial Atlas project commit"
 ```
 
-To connect a remote later:
+The current repo uses `master` and is connected to:
+
+```text
+origin -> https://github.com/Winnie2034/AtlasProj.git
+```
+
+Normal update flow:
 
 ```powershell
-git remote add origin YOUR_REPO_URL
-git push -u origin master
+git status
+git add .
+git commit -m "Describe your change"
+git push origin master
 ```
 
 If you rename the branch to `main`, push `main` instead:
@@ -90,3 +113,5 @@ git push -u origin main
 ## Notes
 
 The Hevy integration is isolated behind `HevyClient` and validates responses with Zod. Before using real sync data, verify the live Swagger schema at `https://api.hevyapp.com/docs/` with your API access because Hevy may change response fields.
+
+Dashboard muscle-group analytics currently classify exercises from their synced exercise titles because Atlas does not store official muscle-group metadata from Hevy yet. Ambiguous exercises fall into `Other`; a future improvement could add an editable exercise-to-muscle-group mapping table.

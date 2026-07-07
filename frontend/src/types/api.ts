@@ -2,8 +2,30 @@ export type ApiMeta = { page: number; pageSize: number; total: number };
 
 export interface DashboardData {
   workoutCount: number;
+  workoutsThisMonth: number;
+  currentStreakDays: number;
   lastSync: { startedAt: string; finishedAt: string | null; status: string } | null;
   recentWorkouts: WorkoutSummary[];
+  setsByMuscleGroupPerWeek: WeeklyMuscleGroupVolume[];
+  trainingDays: TrainingDay[];
+}
+
+export interface WeeklyMuscleGroupVolume {
+  weekStart: string;
+  label: string;
+  totalSets: number;
+  muscleGroups: MuscleGroupSetCount[];
+}
+
+export interface MuscleGroupSetCount {
+  muscleGroup: "Chest" | "Back" | "Legs" | "Shoulders" | "Arms" | "Core" | "Other" | string;
+  setCount: number;
+}
+
+export interface TrainingDay {
+  date: string;
+  workoutCount: number;
+  setCount: number;
 }
 
 export interface WorkoutSummary {
