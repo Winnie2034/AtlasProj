@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+backend/dist/
+frontend/dist/
+dist/
+
+# Local secrets
+backend/.env
+.env
+.env.*
+!.env.example
+!backend/.env.example
+
+# Local runtime/output folders
+outputs/
+work/
+
+# Local Codex/app metadata
+.agents/
+.codex/
+
+# Logs and OS/editor noise
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

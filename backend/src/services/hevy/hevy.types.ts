@@ -1,0 +1,188 @@
+import { z } from "zod";
+
+const normalizeSetPayload = (payload: unknown) => {
+  if (!payload || typeof payload !== "object") {
+    return payload;
+  }
+
+  const set = payload as Record<string, unknown>;
+  return {
+    ...set,
+    type: set.type ?? set.set_type,
+  };
+};
+
+export const hevySetSchema = z.preprocess(
+  normalizeSetPayload,
+  z.object({
+    index: z.number().int(),
+    type: z.string().default("normal"),
+    weight_kg: z.number().nullable().optional(),
+    reps: z.number().int().nullable().optional(),
+    distance_meters: z.number().nullable().optional(),
+    duration_seconds: z.number().int().nullable().optional(),
+    rpe: z.number().nullable().optional(),
+  }),
+);
+
+export const hevyExerciseSchema = z.object({
+  index: z.number().int(),
+  title: z.string(),
+  notes: z.string().nullable().optional(),
+  exercise_template_id: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((value) => value ?? "unknown"),
+  superset_id: z.number().int().nullable().optional(),
+  sets: z.array(hevySetSchema).default([]),
+});
+
+export const hevyWorkoutSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string().nullable().optional(),
+  start_time: z.string(),
+  end_time: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  exercises: z.array(hevyExerciseSchema).default([]),
+});
+
+export const hevyWorkoutResponseSchema = z
+  .union([hevyWorkoutSchema, z.object({ workout: hevyWorkoutSchema })])
+  .transform((payload) => ("workout" in payload ? payload.workout : payload));
+
+export const hevyWorkoutPageSchema = z
+  .union([
+    z.object({ workouts: z.array(hevyWorkoutSchema) }),
+    z.array(hevyWorkoutSchema).transform((workouts) => ({ workouts })),
+  ])
+  .transform((payload) => ("workouts" in payload ? payload : { workouts: payload }));
+
+export const hevyWorkoutCountSchema = z.preprocess((payload) => {
+  if (typeof payload === "number") {
+    return { count: payload };
+  }
+
+  if (payload && typeof payload === "object" && "workout_count" in payload) {
+    return { count: (payload as { workout_count: unknown }).workout_count };
+  }
+
+  return payload;
+}, z.object({ count: z.number().int() }));
+
+export const hevyWorkoutEventSchema = z.preprocess((payload) => {
+  if (!payload || typeof payload !== "object") {
+    return payload;
+  }
+
+  const event = payload as Record<string, unknown>;
+  const nestedWorkout = event.workout && typeof event.workout === "object" ? (event.workout as Record<string, unknown>) : {};
+  const rawType = String(event.type ?? event.event_type ?? event.action ?? "updated").toLowerCase();
+
+  return {
+    id: event.id,
+    workout_id: event.workout_id ?? event.workoutId ?? nestedWorkout.id ?? event.id,
+    type: rawType.includes("delete") ? "deleted" : "updated",
+    updated_at: event.updated_at ?? event.updatedAt ?? event.created_at ?? event.createdAt,
+  };
+}, z.object({
+  id: z.string().optional(),
+  workout_id: z.string().optional(),
+  type: z.enum(["updated", "deleted"]),
+  updated_at: z.string().optional(),
+}));
+
+export const hevyWorkoutEventsPageSchema = z.preprocess((payload) => {
+  if (!payload || typeof payload !== "object") {
+    return payload;
+  }
+
+  const body = payload as Record<string, unknown>;
+  return {
+    events: body.events ?? body.workout_events ?? body.workoutEvents ?? [],
+  };
+}, z.object({
+  events: z.array(hevyWorkoutEventSchema),
+}));
+
+export const hevyExerciseTemplatesPageSchema = z.object({
+  exercise_templates: z.array(z.record(z.unknown())),
+});
+
+export const hevyRoutineSetSchema = z.preprocess(
+  normalizeSetPayload,
+  z
+    .object({
+      index: z.number().int().optional().default(0),
+      type: z.string().optional().default("normal"),
+      weight_kg: z.number().nullable().optional(),
+      reps: z.number().int().nullable().optional(),
+      distance_meters: z.number().nullable().optional(),
+      duration_seconds: z.number().int().nullable().optional(),
+      rpe: z.number().nullable().optional(),
+    })
+    .passthrough(),
+);
+
+export const hevyRoutineExerciseSchema = z
+  .object({
+    index: z.number().int().optional().default(0),
+    title: z.string().optional().default("Untitled exercise"),
+    notes: z.string().nullable().optional(),
+    exercise_template_id: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((value) => value ?? "unknown"),
+    rest_seconds: z.number().int().nullable().optional(),
+    superset_id: z.number().int().nullable().optional(),
+    sets: z.array(hevyRoutineSetSchema).default([]),
+  })
+  .passthrough();
+
+export const hevyRoutineSchema = z
+  .object({
+    id: z.coerce.string(),
+    title: z.string().optional().default("Untitled routine"),
+    folder_id: z.coerce.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+    created_at: z.string().optional(),
+    updated_at: z.string().optional(),
+    exercises: z.array(hevyRoutineExerciseSchema).default([]),
+  })
+  .passthrough();
+
+export const hevyRoutinePageSchema = z
+  .union([
+    z
+      .object({
+        page: z.number().int().optional(),
+        page_count: z.number().int().optional(),
+        routines: z.array(hevyRoutineSchema),
+      })
+      .passthrough(),
+    z
+      .object({
+        page: z.number().int().optional(),
+        page_count: z.number().int().optional(),
+        data: z.array(hevyRoutineSchema),
+      })
+      .passthrough()
+      .transform((payload) => ({
+        page: payload.page,
+        page_count: payload.page_count,
+        routines: payload.data,
+      })),
+    z.array(hevyRoutineSchema).transform((routines) => ({ routines })),
+  ])
+  .transform((payload) => ({
+    page: "page" in payload ? payload.page : undefined,
+    page_count: "page_count" in payload ? payload.page_count : undefined,
+    routines: payload.routines,
+  }));
+
+export type HevyWorkout = z.infer<typeof hevyWorkoutSchema>;
+export type HevyWorkoutEvent = z.infer<typeof hevyWorkoutEventSchema>;
+export type HevyRoutine = z.infer<typeof hevyRoutineSchema>;

@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String?  @unique
+  displayName String?  @map("display_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Workout {
+  id            String     @id @default(uuid())
+  hevyId        String     @unique @map("hevy_id")
+  title         String
+  description   String?
+  startTime     DateTime   @map("start_time")
+  endTime       DateTime   @map("end_time")
+  hevyCreatedAt DateTime   @map("hevy_created_at")
+  hevyUpdatedAt DateTime   @map("hevy_updated_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  exercises     Exercise[]
+
+  @@index([startTime])
+  @@index([title])
+  @@map("workouts")
+}
+
+model Exercise {
+  id                    String   @id @default(uuid())
+  workoutId             String   @map("workout_id")
+  workout               Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  hevyExerciseTemplateId String   @map("hevy_exercise_template_id")
+  title                 String
+  notes                 String?
+  exerciseIndex         Int      @map("exercise_index")
+  supersetId            Int?     @map("superset_id")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  sets                  Set[]
+
+  @@index([workoutId])
+  @@index([hevyExerciseTemplateId])
+  @@map("exercises")
+}
+
+model Set {
+  id              String   @id @default(uuid())
+  exerciseId      String   @map("exercise_id")
+  exercise        Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  setIndex        Int      @map("set_index")
+  setType         String   @map("set_type")
+  weightKg        Decimal? @map("weight_kg") @db.Decimal(6, 2)
+  reps            Int?
+  distanceMeters  Decimal? @map("distance_meters") @db.Decimal(8, 2)
+  durationSeconds Int?     @map("duration_seconds")
+  rpe             Decimal? @db.Decimal(3, 1)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([exerciseId])
+  @@map("sets")
+}
+
+model SyncHistory {
+  id              String    @id @default(uuid())
+  startedAt       DateTime  @map("started_at")
+  finishedAt      DateTime? @map("finished_at")
+  status          String
+  workoutsFetched Int       @default(0) @map("workouts_fetched")
+  workoutsCreated Int       @default(0) @map("workouts_created")
+  workoutsUpdated Int       @default(0) @map("workouts_updated")
+  workoutsDeleted Int       @default(0) @map("workouts_deleted")
+  errorMessage    String?   @map("error_message")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([startedAt])
+  @@map("sync_history")
+}
+
+model ApplicationSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("application_settings")
+}
