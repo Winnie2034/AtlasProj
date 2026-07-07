@@ -8,6 +8,7 @@ import {
   hevyWorkoutPageSchema,
   hevyWorkoutResponseSchema,
   hevyRoutinePageSchema,
+  hevyRoutineFolderPageSchema,
 } from "./hevy.types.js";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -41,6 +42,10 @@ export class HevyClient {
 
   getRoutinesPage(page: number, pageSize: number) {
     return this.request(`/v1/routines?page=${page}&pageSize=${pageSize}`, hevyRoutinePageSchema);
+  }
+
+  getRoutineFoldersPage(page: number, pageSize: number) {
+    return this.request(`/v1/routine_folders?page=${page}&pageSize=${pageSize}`, hevyRoutineFolderPageSchema);
   }
 
   private async request<T extends z.ZodTypeAny>(path: string, schema: T, attempt = 1): Promise<z.infer<T>> {

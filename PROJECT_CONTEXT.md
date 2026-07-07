@@ -100,8 +100,10 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - Added a read-only Routines section:
   - backend exposes `GET /api/routines`.
   - backend currently calls Hevy at `/v1/routines?page=...&pageSize=...`.
+  - backend also calls `/v1/routine_folders?page=...&pageSize=...` so routines can display their Hevy folder name.
+  - routine folder lookup is optional; if Hevy rejects that endpoint or its response shape changes, routines still load without folder labels.
   - frontend route is `/routines`, linked from the sidebar.
-  - routine cards show exercises, planned sets, rest, reps, weight, distance, duration, and RPE where available.
+  - routine cards show folder, exercises, planned sets, rest, reps, weight, distance, duration, and RPE where available.
   - routine response validation is intentionally tolerant: accepts `{ routines: [...] }`, `{ data: [...] }`, or a raw array.
   - routine pagination now preserves and uses Hevy's `page_count` when available, falling back to page-size length checks otherwise.
   - routine set validation accepts both `type` and API-style `set_type`, normalizing to internal `type`.

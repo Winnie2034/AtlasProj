@@ -12,6 +12,24 @@ const normalizeSetPayload = (payload: unknown) => {
   };
 };
 
+const normalizePagePayload = (payload: unknown, resourceKeys: string[]) => {
+  if (Array.isArray(payload)) {
+    return { [resourceKeys[0]]: payload };
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return payload;
+  }
+
+  const body = payload as Record<string, unknown>;
+  const resourceValue = resourceKeys.map((key) => body[key]).find((value) => Array.isArray(value));
+
+  return {
+    ...body,
+    [resourceKeys[0]]: resourceValue ?? [],
+  };
+};
+
 export const hevySetSchema = z.preprocess(
   normalizeSetPayload,
   z.object({
@@ -155,7 +173,8 @@ export const hevyRoutineSchema = z
   .passthrough();
 
 export const hevyRoutinePageSchema = z
-  .union([
+  .preprocess(
+    (payload) => normalizePagePayload(payload, ["routines", "data"]),
     z
       .object({
         page: z.number().int().optional(),
@@ -163,26 +182,52 @@ export const hevyRoutinePageSchema = z
         routines: z.array(hevyRoutineSchema),
       })
       .passthrough(),
+  )
+  .transform((payload) => ({
+    page: payload.page,
+    page_count: payload.page_count,
+    routines: payload.routines,
+  }));
+
+export const hevyRoutineFolderSchema = z
+  .preprocess((payload) => {
+    if (!payload || typeof payload !== "object") {
+      return payload;
+    }
+
+    const folder = payload as Record<string, unknown>;
+    return {
+      ...folder,
+      title: folder.title ?? folder.name,
+    };
+  }, z
+    .object({
+      id: z.coerce.string(),
+      title: z.string().optional().default("Untitled folder"),
+      index: z.number().int().optional().default(0),
+      created_at: z.string().optional(),
+      updated_at: z.string().optional(),
+    })
+    .passthrough());
+
+export const hevyRoutineFolderPageSchema = z
+  .preprocess(
+    (payload) => normalizePagePayload(payload, ["routine_folders", "folders", "routineFolders", "data"]),
     z
       .object({
         page: z.number().int().optional(),
         page_count: z.number().int().optional(),
-        data: z.array(hevyRoutineSchema),
+        routine_folders: z.array(hevyRoutineFolderSchema),
       })
-      .passthrough()
-      .transform((payload) => ({
-        page: payload.page,
-        page_count: payload.page_count,
-        routines: payload.data,
-      })),
-    z.array(hevyRoutineSchema).transform((routines) => ({ routines })),
-  ])
+      .passthrough(),
+  )
   .transform((payload) => ({
-    page: "page" in payload ? payload.page : undefined,
-    page_count: "page_count" in payload ? payload.page_count : undefined,
-    routines: payload.routines,
+    page: payload.page,
+    page_count: payload.page_count,
+    routine_folders: payload.routine_folders,
   }));
 
 export type HevyWorkout = z.infer<typeof hevyWorkoutSchema>;
 export type HevyWorkoutEvent = z.infer<typeof hevyWorkoutEventSchema>;
 export type HevyRoutine = z.infer<typeof hevyRoutineSchema>;
+export type HevyRoutineFolder = z.infer<typeof hevyRoutineFolderSchema>;

@@ -78,6 +78,7 @@ export interface Routine {
   id: string;
   title: string;
   folderId: string | null;
+  folderTitle: string | null;
   notes: string | null;
   createdAt: string | null;
   updatedAt: string | null;

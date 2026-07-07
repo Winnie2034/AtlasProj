@@ -1,4 +1,4 @@
-import { Clock3, Dumbbell } from "lucide-react";
+import { Clock3, Dumbbell, Folder } from "lucide-react";
 import type { Routine, RoutineSet } from "../../types/api";
 import { formatDuration } from "../../utils/format";
 
@@ -23,6 +23,12 @@ export function RoutineCard({ routine }: { routine: Routine }) {
           {routine.notes ? <p className="mt-1 text-sm text-slate-600">{routine.notes}</p> : null}
         </div>
         <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-600">
+          {routine.folderTitle ? (
+            <span className="inline-flex items-center gap-1 rounded-md border border-line px-2 py-1">
+              <Folder size={14} />
+              {routine.folderTitle}
+            </span>
+          ) : null}
           <span className="inline-flex items-center gap-1 rounded-md border border-line px-2 py-1">
             <Dumbbell size={14} />
             {routine.exerciseCount} exercises
