@@ -75,6 +75,8 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - `backend/prisma/schema.prisma` - database schema.
 - `backend/src/services/hevy/hevy.client.ts` - Hevy HTTP client.
 - `backend/src/services/hevy/hevy.types.ts` - Hevy response validation schemas.
+- `backend/src/repositories/exerciseTemplateMetadata.repository.ts` - local cache access for Hevy exercise template muscle metadata.
+- `backend/src/services/exerciseTemplateMetadata.service.ts` - fetches and stores missing Hevy template metadata without blocking sync/routines on failure.
 - `backend/src/services/sync.service.ts` - sync orchestration.
 - `backend/src/services/dashboard.service.ts` - dashboard summary and analytics aggregation.
 - `backend/src/services/routines.service.ts` - read-only Hevy routines loading/serialization.
@@ -137,24 +139,35 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - a full-width weekly radar chart was added at the bottom of the dashboard in `WeeklyMuscleRadarChart`.
   - the radar chart uses the last 8 weeks from `setsByMuscleGroupPerWeek`, lets the user switch weeks, and displays percentage distribution for Back, Chest, Shoulders, Arms, and Legs only.
   - Core and Other are intentionally skipped in the radar chart.
-  - the radar currently uses tracked set counts only; for each selected week it divides each included group by the total sets across Back, Chest, Shoulders, Arms, and Legs.
+  - the radar now uses weighted training stimulus from cached Hevy exercise template metadata, not the old title-only classifier.
+  - Hevy detailed muscles are mapped into Atlas groups: chest -> Chest; shoulders -> Shoulders; biceps/triceps/forearms -> Arms; lats/upper_back/lower_back/traps/neck -> Back; quadriceps/hamstrings/glutes/calves/adductors/abductors -> Legs; abdominals -> Core.
+  - Weighted model: if an exercise has secondary muscles, its primary muscle group gets 70% of each set and secondary muscles split the remaining 30%; if there are no secondary muscles, the primary group gets 100%.
   - sync results appear as a temporary top-center toast instead of a card below the Sync button.
-  - backend returns `workoutsThisMonth`, `currentStreakDays`, `setsByMuscleGroupPerWeek`, and `trainingDays` from `GET /api/dashboard`.
-  - muscle group classification currently uses exercise-title patterns because the local database does not store official Hevy muscle-group metadata. Unknown or ambiguous exercises fall into `Other`.
+  - backend returns `workoutsThisMonth`, `currentStreakDays`, raw `setsByMuscleGroupPerWeek`, weighted `muscleDistributionPerWeek`, and `trainingDays` from `GET /api/dashboard`.
+  - raw `setsByMuscleGroupPerWeek` still uses the older title-based classifier for the existing stacked chart, while weighted `muscleDistributionPerWeek` uses cached Hevy template metadata for the radar and falls back to the title classifier only when metadata is missing.
   - verified radar implementation with `npm.cmd run typecheck`, `npm.cmd run build`, and a local browser check against `http://localhost:5173/`.
   - Verified with `npm.cmd run typecheck`, `npm.cmd run build`, and a local browser/API smoke check against `http://localhost:5173/` and `http://localhost:4000/api/dashboard`.
-- Current pause point for muscle distribution work:
-  - Development is paused after adding the bottom weekly radar chart.
-  - No database-backed exercise-to-muscle mapping has been added yet.
-  - Hevy workout data currently provides exercise names/template IDs and sets, but Atlas is not storing official primary/secondary muscle metadata from Hevy.
-  - The current classifier mislabels some shoulder-looking exercises because simple regex rules collide with substrings:
-    - `Shoulder Press (Machine Plates)` can be caught as Back because `Plates` contains `lat`.
-    - `Standing lateral Raise Machine` can be caught as Back because `lateral` contains `lat`.
-    - `Rear Delt Reverse Fly (Machine)` can be caught as Chest because `fly` matches the chest rule before shoulder terms.
-  - The preferred next step is not just tighter regex. Add an exercise contribution model that maps each Hevy exercise template ID to weighted muscle contributions, for example Bench Press = Chest 70%, Arms 20%, Shoulders 10%.
-  - Use manual mappings first, then fall back to a safer automatic classifier for unmapped exercises.
-  - The user is open to classifying exercises from Hevy routines so Atlas can seed reliable mappings from recurring exercises.
-  - If continuing immediately, start by designing a persistent mapping table and a small Settings UI for reviewing unique exercises and assigning percentage contributions.
+- Exercise template metadata cache:
+  - Added Prisma model/table `exercise_template_metadata` via migration `20260708000100_add_exercise_template_metadata`.
+  - The table stores `hevyExerciseTemplateId`, `title`, `type`, `primaryMuscleGroup`, `secondaryMuscleGroups`, `equipment`, `isCustom`, and fetch timestamps.
+  - `HevyClient` now supports `GET /v1/exercise_templates/{exerciseTemplateId}`.
+  - `ExerciseTemplateMetadataService.ensureMetadataForTemplateIds(ids)` fetches only missing template IDs and logs warning-level failures instead of breaking sync/routine loading.
+  - Workout sync calls the metadata service after normalizing a fetched workout and before saving it.
+  - Routine listing calls the metadata service after fetching routines, so routine exercise templates can also seed the same cache.
+  - Dashboard reads cached metadata locally; it does not call Hevy.
+  - Fallback remains the old title-based classifier if metadata is missing.
+  - Local verification populated 37 distinct exercise template metadata rows from existing synced workouts, then a second ensure pass fetched 0 rows, confirming no redundant Hevy calls.
+  - API smoke check confirmed `GET /api/dashboard` includes both raw `setsByMuscleGroupPerWeek` and weighted `muscleDistributionPerWeek`.
+  - Browser check confirmed the radar displays "Weighted training stimulus" and week switching still works.
+  - Final sanity check before commit:
+    - `npm.cmd run typecheck` passed.
+    - `npm.cmd run build` passed.
+    - `npm.cmd --workspace backend exec prisma migrate status` reported the database schema is up to date.
+    - Direct `SyncService.runSync()` against Hevy completed successfully with no errors. At that time Hevy returned no new workout events for the current cursor, so counts remained 20 workouts, 119 exercises, 411 sets, and 37 cached template metadata rows.
+    - Metadata ensure check over 37 distinct local exercise template IDs fetched 0 new rows and failed 0 rows, confirming cache reuse.
+    - Direct dashboard service check returned 8 raw weeks, 8 weighted weeks, and 35 training days.
+    - Direct routines service check from the backend folder returned 6 routines.
+    - `npm.cmd --workspace backend run prisma:generate` hit a Windows `EPERM` rename lock on `node_modules/.prisma/client/query_engine-windows.dll.node`; this appears to be a local file-lock issue because the generated client already includes the new model and typecheck/build/runtime checks pass.
 
 ## Git Workflow
 
@@ -200,6 +213,8 @@ backend/src/services/hevy/hevy.types.ts
 backend/src/services/sync.service.ts
 backend/src/services/routines.service.ts
 backend/src/services/dashboard.service.ts
+backend/src/services/exerciseTemplateMetadata.service.ts
+backend/src/repositories/exerciseTemplateMetadata.repository.ts
 frontend/src/components/dashboard/WeeklyMuscleRadarChart.tsx
 ```
 

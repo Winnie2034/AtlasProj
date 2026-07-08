@@ -53,6 +53,23 @@ model Exercise {
   @@map("exercises")
 }
 
+model ExerciseTemplateMetadata {
+  id                     String   @id @default(uuid())
+  hevyExerciseTemplateId String   @unique @map("hevy_exercise_template_id")
+  title                  String
+  type                   String?
+  primaryMuscleGroup     String?  @map("primary_muscle_group")
+  secondaryMuscleGroups  String[] @default([]) @map("secondary_muscle_groups")
+  equipment              String?
+  isCustom               Boolean  @default(false) @map("is_custom")
+  fetchedAt              DateTime @default(now()) @map("fetched_at")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  @@index([primaryMuscleGroup])
+  @@map("exercise_template_metadata")
+}
+
 model Set {
   id              String   @id @default(uuid())
   exerciseId      String   @map("exercise_id")

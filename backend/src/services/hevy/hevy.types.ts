@@ -129,6 +129,30 @@ export const hevyExerciseTemplatesPageSchema = z.object({
   exercise_templates: z.array(z.record(z.unknown())),
 });
 
+export const hevyExerciseTemplateSchema = z
+  .object({
+    id: z.coerce.string(),
+    title: z.string(),
+    type: z.string().optional(),
+    primary_muscle_group: z.string().nullable().optional(),
+    secondary_muscle_groups: z.array(z.string()).default([]),
+    equipment: z.string().nullable().optional(),
+    is_custom: z.boolean().optional().default(false),
+  })
+  .passthrough();
+
+export const hevyExerciseTemplateResponseSchema = z
+  .union([
+    hevyExerciseTemplateSchema,
+    z.object({ exercise_template: hevyExerciseTemplateSchema }),
+    z.object({ data: hevyExerciseTemplateSchema }),
+  ])
+  .transform((payload) => {
+    if ("exercise_template" in payload) return payload.exercise_template;
+    if ("data" in payload) return payload.data;
+    return payload;
+  });
+
 export const hevyRoutineSetSchema = z.preprocess(
   normalizeSetPayload,
   z
@@ -229,5 +253,6 @@ export const hevyRoutineFolderPageSchema = z
 
 export type HevyWorkout = z.infer<typeof hevyWorkoutSchema>;
 export type HevyWorkoutEvent = z.infer<typeof hevyWorkoutEventSchema>;
+export type HevyExerciseTemplate = z.infer<typeof hevyExerciseTemplateSchema>;
 export type HevyRoutine = z.infer<typeof hevyRoutineSchema>;
 export type HevyRoutineFolder = z.infer<typeof hevyRoutineFolderSchema>;

@@ -94,6 +94,22 @@ Notable response: creating a routine can return **403 Routine limit exceeded** â
 
 Notable response: **403 exceeds-custom-exercise-limit** â€” custom exercise creation is capped per account.
 
+Live response fields verified through Atlas include:
+
+```json
+{
+  "id": "79D0BB3A",
+  "title": "Bench Press (Barbell)",
+  "type": "weight_reps",
+  "primary_muscle_group": "chest",
+  "secondary_muscle_groups": ["triceps", "shoulders"],
+  "equipment": "barbell",
+  "is_custom": false
+}
+```
+
+Atlas uses `primary_muscle_group` and `secondary_muscle_groups` as the source for weighted dashboard muscle distribution. The values are cached locally so dashboard reads do not call Hevy.
+
 ### 5.4 Routine Folders
 
 | Method | Path | Summary | Required Params | Optional Params |

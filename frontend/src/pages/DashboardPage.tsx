@@ -50,7 +50,7 @@ export function DashboardPage() {
         <RecentWorkoutsList workouts={data.recentWorkouts} />
       </div>
       <TrainingDaysHeatmap days={data.trainingDays} />
-      <WeeklyMuscleRadarChart weeks={data.setsByMuscleGroupPerWeek} />
+      <WeeklyMuscleRadarChart weeks={data.muscleDistributionPerWeek} />
     </div>
   );
 }

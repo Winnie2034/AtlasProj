@@ -3,6 +3,7 @@ import { env } from "../../config/env.js";
 import { HevyApiError } from "../../utils/AppError.js";
 import {
   hevyExerciseTemplatesPageSchema,
+  hevyExerciseTemplateResponseSchema,
   hevyWorkoutCountSchema,
   hevyWorkoutEventsPageSchema,
   hevyWorkoutPageSchema,
@@ -38,6 +39,10 @@ export class HevyClient {
 
   getExerciseTemplates(page: number, pageSize: number) {
     return this.request(`/v1/exercise_templates?page=${page}&pageSize=${pageSize}`, hevyExerciseTemplatesPageSchema);
+  }
+
+  getExerciseTemplateById(id: string) {
+    return this.request(`/v1/exercise_templates/${encodeURIComponent(id)}`, hevyExerciseTemplateResponseSchema);
   }
 
   getRoutinesPage(page: number, pageSize: number) {

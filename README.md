@@ -115,6 +115,10 @@ git push -u origin main
 
 The Hevy integration is isolated behind `HevyClient` and validates responses with Zod. Before using real sync data, verify the live Swagger schema at `https://api.hevyapp.com/docs/` with your API access because Hevy may change response fields.
 
-Dashboard muscle-group analytics currently classify exercises from their synced exercise titles because Atlas does not store official muscle-group metadata from Hevy yet. The weekly radar chart shows percentage distribution across Back, Chest, Shoulders, Arms, and Legs for the selected week, skipping Core and Other.
+Dashboard muscle-group analytics use two paths. The existing stacked weekly chart still shows raw set counts from the older title-based classifier. The weekly radar chart uses cached Hevy exercise template metadata and shows weighted training stimulus across Back, Chest, Shoulders, Arms, and Legs for the selected week, skipping Core and Other.
 
-The current title-based classifier is only a starting point. Some exercises can be misclassified when names contain overlapping terms, such as `lateral`, `Plates`, or `Rear Delt Reverse Fly`. A planned improvement is an editable exercise mapping system that uses Hevy exercise template IDs and weighted muscle contributions, so compound lifts can count toward primary and secondary muscles.
+Atlas stores Hevy template metadata locally in `exercise_template_metadata`, so the dashboard does not call Hevy while rendering. During workout sync and routine loading, Atlas fetches only missing exercise template metadata and reuses cached rows afterward. The radar weighting model gives the primary muscle group 70% of each set and splits the remaining 30% across secondary muscles; exercises without secondary muscles count 100% toward their primary group.
+
+A future improvement could add a Settings page for manual overrides, but the current implementation already uses Hevy's `primary_muscle_group` and `secondary_muscle_groups` fields when available.
+
+Recent sanity checks verified typecheck, build, migration status, direct Hevy sync, dashboard analytics, routines loading, and metadata cache reuse. If `prisma generate` reports a Windows `EPERM` rename error for the Prisma query engine DLL, close running Node/API processes and retry; the generated client may simply be locked by a local process.

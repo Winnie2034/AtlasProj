@@ -2,6 +2,7 @@ import { HevyClient } from "./hevy/hevy.client.js";
 import type { HevyRoutine, HevyRoutineFolder } from "./hevy/hevy.types.js";
 import { HevyApiError } from "../utils/AppError.js";
 import { logger } from "../utils/logger.js";
+import { ExerciseTemplateMetadataService } from "./exerciseTemplateMetadata.service.js";
 
 const sumSets = (routine: HevyRoutine) =>
   routine.exercises.reduce((count, exercise) => count + exercise.sets.length, 0);
@@ -42,11 +43,17 @@ const serializeRoutine = (routine: HevyRoutine, foldersById: Map<string, HevyRou
 });
 
 export class RoutinesService {
-  constructor(private hevy = new HevyClient()) {}
+  constructor(
+    private hevy = new HevyClient(),
+    private templateMetadata = new ExerciseTemplateMetadataService(hevy),
+  ) {}
 
   async list() {
     const pageSize = 10;
     const routines = await this.listRoutines(pageSize);
+    await this.templateMetadata.ensureMetadataForTemplateIds(
+      routines.flatMap((routine) => routine.exercises.map((exercise) => exercise.exercise_template_id)),
+    );
     const folders = await this.listFolders(pageSize);
     const foldersById = new Map(folders.map((folder) => [folder.id, folder]));
 

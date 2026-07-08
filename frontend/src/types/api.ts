@@ -7,6 +7,7 @@ export interface DashboardData {
   lastSync: { startedAt: string; finishedAt: string | null; status: string } | null;
   recentWorkouts: WorkoutSummary[];
   setsByMuscleGroupPerWeek: WeeklyMuscleGroupVolume[];
+  muscleDistributionPerWeek: WeeklyMuscleGroupVolume[];
   trainingDays: TrainingDay[];
 }
 

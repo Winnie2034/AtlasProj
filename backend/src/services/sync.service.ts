@@ -5,6 +5,7 @@ import { SyncHistoryRepository } from "../repositories/syncHistory.repository.js
 import { WorkoutRepository } from "../repositories/workout.repository.js";
 import { HevyApiError } from "../utils/AppError.js";
 import { logger } from "../utils/logger.js";
+import { ExerciseTemplateMetadataService } from "./exerciseTemplateMetadata.service.js";
 
 type SyncError = { hevyWorkoutId: string; message: string };
 
@@ -26,6 +27,7 @@ export class SyncService {
     private workouts = new WorkoutRepository(),
     private syncHistory = new SyncHistoryRepository(),
     private settings = new SettingsRepository(),
+    private templateMetadata = new ExerciseTemplateMetadataService(hevy),
   ) {}
 
   async runSync() {
@@ -139,7 +141,11 @@ export class SyncService {
     try {
       const workout = await loadWorkout();
       summary.workoutsFetched += 1;
-      const result = await this.workouts.upsertNormalized(normalizeWorkout(workout));
+      const normalized = normalizeWorkout(workout);
+      await this.templateMetadata.ensureMetadataForTemplateIds(
+        normalized.exercises.map((exercise) => exercise.hevyExerciseTemplateId),
+      );
+      const result = await this.workouts.upsertNormalized(normalized);
       if (result.action === "created") summary.workoutsCreated += 1;
       if (result.action === "updated") summary.workoutsUpdated += 1;
       logger.info({ hevyWorkoutId, action: result.action }, "workout sync complete");

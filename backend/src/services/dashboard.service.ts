@@ -1,8 +1,11 @@
+import type { ExerciseTemplateMetadata } from "@prisma/client";
+import { ExerciseTemplateMetadataRepository } from "../repositories/exerciseTemplateMetadata.repository.js";
 import { SyncHistoryRepository } from "../repositories/syncHistory.repository.js";
 import { WorkoutRepository } from "../repositories/workout.repository.js";
 
 const MUSCLE_GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Other"] as const;
 type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
+type MuscleCounts = Record<MuscleGroup, number>;
 
 const summarizeWorkout = (workout: Awaited<ReturnType<WorkoutRepository["findRecent"]>>[number]) => ({
   id: workout.id,
@@ -60,7 +63,46 @@ const classifyMuscleGroup = (title: string): MuscleGroup => {
 };
 
 const emptyMuscleCounts = () =>
-  Object.fromEntries(MUSCLE_GROUPS.map((group) => [group, 0])) as Record<MuscleGroup, number>;
+  Object.fromEntries(MUSCLE_GROUPS.map((group) => [group, 0])) as MuscleCounts;
+
+const hevyMuscleToAtlasGroup = (muscle: string): MuscleGroup => {
+  const normalized = muscle.toLowerCase();
+  if (normalized === "chest") return "Chest";
+  if (normalized === "shoulders") return "Shoulders";
+  if (["biceps", "triceps", "forearms"].includes(normalized)) return "Arms";
+  if (["lats", "upper_back", "lower_back", "traps", "neck"].includes(normalized)) return "Back";
+  if (["quadriceps", "hamstrings", "glutes", "calves", "adductors", "abductors"].includes(normalized)) return "Legs";
+  if (["abdominals"].includes(normalized)) return "Core";
+  return "Other";
+};
+
+const weightedMuscleCounts = (metadata: ExerciseTemplateMetadata | undefined, fallbackTitle: string, setCount: number) => {
+  const counts = emptyMuscleCounts();
+  if (!metadata?.primaryMuscleGroup) {
+    counts[classifyMuscleGroup(fallbackTitle)] = setCount;
+    return counts;
+  }
+
+  const primaryGroup = hevyMuscleToAtlasGroup(metadata.primaryMuscleGroup);
+  if (metadata.secondaryMuscleGroups.length === 0) {
+    counts[primaryGroup] += setCount;
+    return counts;
+  }
+
+  counts[primaryGroup] += setCount * 0.7;
+  const secondaryWeight = 0.3 / metadata.secondaryMuscleGroups.length;
+  for (const secondaryMuscle of metadata.secondaryMuscleGroups) {
+    counts[hevyMuscleToAtlasGroup(secondaryMuscle)] += setCount * secondaryWeight;
+  }
+
+  return counts;
+};
+
+const addMuscleCounts = (target: MuscleCounts, source: MuscleCounts) => {
+  for (const group of MUSCLE_GROUPS) {
+    target[group] += source[group];
+  }
+};
 
 const buildWeeklyMuscleGroupSeries = (
   workouts: Awaited<ReturnType<WorkoutRepository["findSince"]>>,
@@ -92,6 +134,47 @@ const buildWeeklyMuscleGroupSeries = (
     muscleGroups: MUSCLE_GROUPS.map((group) => ({
       muscleGroup: group,
       setCount: week.counts[group],
+    })),
+  }));
+};
+
+const buildWeeklyMuscleDistributionSeries = (
+  workouts: Awaited<ReturnType<WorkoutRepository["findSince"]>>,
+  firstWeekStart: Date,
+  weekCount: number,
+  metadataByTemplateId: Map<string, ExerciseTemplateMetadata>,
+) => {
+  const weeks = Array.from({ length: weekCount }, (_, index) => {
+    const weekStart = addDays(firstWeekStart, index * 7);
+    return {
+      weekStart,
+      counts: emptyMuscleCounts(),
+    };
+  });
+
+  for (const workout of workouts) {
+    const weekIndex = Math.floor((startOfWeek(workout.startTime).getTime() - firstWeekStart.getTime()) / 604800000);
+    if (weekIndex < 0 || weekIndex >= weeks.length) continue;
+
+    for (const exercise of workout.exercises) {
+      addMuscleCounts(
+        weeks[weekIndex].counts,
+        weightedMuscleCounts(
+          metadataByTemplateId.get(exercise.hevyExerciseTemplateId),
+          exercise.title,
+          exercise.sets.length,
+        ),
+      );
+    }
+  }
+
+  return weeks.map((week) => ({
+    weekStart: dateKey(week.weekStart),
+    label: weekLabel(week.weekStart),
+    totalSets: MUSCLE_GROUPS.reduce((total, group) => total + week.counts[group], 0),
+    muscleGroups: MUSCLE_GROUPS.map((group) => ({
+      muscleGroup: group,
+      setCount: Number(week.counts[group].toFixed(2)),
     })),
   }));
 };
@@ -140,6 +223,7 @@ export class DashboardService {
   constructor(
     private workouts = new WorkoutRepository(),
     private syncHistory = new SyncHistoryRepository(),
+    private templateMetadata = new ExerciseTemplateMetadataRepository(),
   ) {}
 
   async getDashboard() {
@@ -158,6 +242,17 @@ export class DashboardService {
         this.workouts.findSince(activityStart),
       ]);
 
+    const metadata = await this.templateMetadata.findByTemplateIds(
+      Array.from(
+        new Set(
+          analyticsWorkouts.flatMap((workout) =>
+            workout.exercises.map((exercise) => exercise.hevyExerciseTemplateId).filter((id) => id !== "unknown"),
+          ),
+        ),
+      ),
+    );
+    const metadataByTemplateId = new Map(metadata.map((row) => [row.hevyExerciseTemplateId, row]));
+
     return {
       workoutCount,
       workoutsThisMonth,
@@ -171,6 +266,12 @@ export class DashboardService {
         : null,
       recentWorkouts: recentWorkouts.map(summarizeWorkout),
       setsByMuscleGroupPerWeek: buildWeeklyMuscleGroupSeries(analyticsWorkouts, weeklyStart, 8),
+      muscleDistributionPerWeek: buildWeeklyMuscleDistributionSeries(
+        analyticsWorkouts,
+        weeklyStart,
+        8,
+        metadataByTemplateId,
+      ),
       trainingDays: buildTrainingDays(activityWorkouts, activityStart, 35),
     };
   }

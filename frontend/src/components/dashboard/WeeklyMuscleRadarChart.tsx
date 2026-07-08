@@ -17,6 +17,14 @@ const GROUP_STYLES: Record<RadarGroup, string> = {
   Legs: "bg-emerald-600",
 };
 
+const GROUP_HEX: Record<RadarGroup, string> = {
+  Back: "#4f46e5",
+  Chest: "#0d9488",
+  Shoulders: "#f59e0b",
+  Arms: "#f43f5e",
+  Legs: "#059669",
+};
+
 const polarPoint = (index: number, value: number) => {
   const angle = (-90 + index * (360 / RADAR_GROUPS.length)) * (Math.PI / 180);
   const distance = (Math.max(0, Math.min(value, 100)) / 100) * RADIUS;
@@ -44,6 +52,12 @@ const labelPoint = (index: number) => {
 
 const percentage = (part: number, total: number) => (total > 0 ? Math.round((part / total) * 100) : 0);
 
+const radarScaleMax = (percentages: number[]) => {
+  const strongestGroup = Math.max(...percentages, 0);
+  if (strongestGroup === 0) return 100;
+  return Math.min(Math.max(Math.ceil(strongestGroup / 10) * 10, 20), 100);
+};
+
 export function WeeklyMuscleRadarChart({ weeks }: { weeks: WeeklyMuscleGroupVolume[] }) {
   const [selectedIndex, setSelectedIndex] = useState(Math.max(weeks.length - 1, 0));
   const selectedWeek = weeks[selectedIndex] ?? weeks[weeks.length - 1];
@@ -61,14 +75,14 @@ export function WeeklyMuscleRadarChart({ weeks }: { weeks: WeeklyMuscleGroupVolu
     });
   }, [selectedWeek]);
 
+  const trackedSets = distribution.reduce((total, item) => total + item.setCount, 0);
+  const chartMax = radarScaleMax(distribution.map((item) => item.percentage));
   const polygonPoints = distribution
     .map((item, index) => {
-      const point = polarPoint(index, item.percentage);
+      const point = polarPoint(index, (item.percentage / chartMax) * 100);
       return `${point.x},${point.y}`;
     })
     .join(" ");
-
-  const trackedSets = distribution.reduce((total, item) => total + item.setCount, 0);
   const topGroup =
     trackedSets > 0
       ? distribution.reduce((best, item) => (item.percentage > best.percentage ? item : best), distribution[0])
@@ -85,7 +99,7 @@ export function WeeklyMuscleRadarChart({ weeks }: { weeks: WeeklyMuscleGroupVolu
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold">Weekly Muscle Distribution</h3>
-          <p className="text-sm text-slate-500">Percentage split of sets for the selected week</p>
+          <p className="text-sm text-slate-500">Weighted training stimulus for the selected week</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -99,7 +113,7 @@ export function WeeklyMuscleRadarChart({ weeks }: { weeks: WeeklyMuscleGroupVolu
           </button>
           <div className="min-w-28 text-center">
             <p className="text-sm font-semibold text-ink">{selectedWeek.label}</p>
-            <p className="text-xs text-slate-500">{trackedSets} tracked sets</p>
+            <p className="text-xs text-slate-500">{trackedSets.toFixed(1)} stimulus units</p>
           </div>
           <button
             aria-label="Next week"
@@ -113,15 +127,35 @@ export function WeeklyMuscleRadarChart({ weeks }: { weeks: WeeklyMuscleGroupVolu
         </div>
       </div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="flex justify-center overflow-x-auto">
+      <div className="mt-5 grid items-center gap-5 xl:grid-cols-[230px_minmax(300px,420px)_minmax(260px,1fr)]">
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-slate-500">Most trained</p>
+            <p className="text-2xl font-semibold text-ink">{topGroup?.group ?? "No tracked sets"}</p>
+            <p className="text-sm text-slate-500">
+              {topGroup ? `${topGroup.percentage}% of stimulus` : selectedWeek.label}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-line pt-4">
+            <div>
+              <p className="text-xs uppercase text-slate-400">Week</p>
+              <p className="text-sm font-semibold text-ink">{selectedWeek.label}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-slate-400">Volume</p>
+              <p className="text-sm font-semibold text-ink">{trackedSets.toFixed(1)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-center overflow-x-auto xl:justify-center">
           <svg
             aria-label={`${selectedWeek.label} muscle distribution radar chart`}
-            className="h-auto w-full max-w-[560px]"
+            className="h-auto w-full max-w-[410px]"
             role="img"
             viewBox="0 0 360 360"
           >
-            <g fill="none" stroke="#d8ded6" strokeWidth="1.5">
+            <g fill="none" stroke="#cbd5e1" strokeOpacity="0.7" strokeWidth="1">
               {RINGS.map((ring) => (
                 <polygon key={ring} points={pointsForValue(ring)} />
               ))}
@@ -131,21 +165,22 @@ export function WeeklyMuscleRadarChart({ weeks }: { weeks: WeeklyMuscleGroupVolu
               })}
             </g>
 
-            <polygon fill="#256d85" opacity="0.22" points={polygonPoints} />
+            <polygon fill="#256d85" opacity="0.12" points={polygonPoints} />
             <polyline
               fill="none"
               points={`${polygonPoints} ${polygonPoints.split(" ")[0]}`}
               stroke="#256d85"
+              strokeOpacity="0.82"
               strokeLinejoin="round"
-              strokeWidth="4"
+              strokeWidth="3"
             />
 
             {distribution.map((item, index) => {
-              const point = polarPoint(index, item.percentage);
+              const point = polarPoint(index, (item.percentage / chartMax) * 100);
               const label = labelPoint(index);
               return (
                 <g key={item.group}>
-                  <circle cx={point.x} cy={point.y} fill="#256d85" r="4.5" />
+                  <circle cx={point.x} cy={point.y} fill={GROUP_HEX[item.group]} r="4" />
                   <text
                     fill="#475569"
                     fontSize="13"
@@ -165,15 +200,7 @@ export function WeeklyMuscleRadarChart({ weeks }: { weeks: WeeklyMuscleGroupVolu
           </svg>
         </div>
 
-        <div className="flex flex-col justify-center gap-4">
-          <div>
-            <p className="text-sm text-slate-500">Most trained</p>
-            <p className="text-2xl font-semibold text-ink">{topGroup?.group ?? "No tracked sets"}</p>
-            <p className="text-sm text-slate-500">
-              {topGroup ? `${topGroup.percentage}% of tracked sets during ${selectedWeek.label}` : selectedWeek.label}
-            </p>
-          </div>
-
+        <div className="space-y-4">
           <div className="space-y-2">
             {distribution.map((item) => (
               <div className="grid grid-cols-[86px_minmax(0,1fr)_44px] items-center gap-2" key={item.group}>
@@ -181,15 +208,18 @@ export function WeeklyMuscleRadarChart({ weeks }: { weeks: WeeklyMuscleGroupVolu
                   <span className={`h-2.5 w-2.5 rounded-sm ${GROUP_STYLES[item.group]}`} />
                   {item.group}
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-paper">
-                  <div className="h-full rounded-full bg-river" style={{ width: `${item.percentage}%` }} />
+                <div className="h-2.5 overflow-hidden rounded-full bg-paper">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ backgroundColor: GROUP_HEX[item.group], width: `${item.percentage}%` }}
+                  />
                 </div>
                 <span className="text-right text-sm font-semibold text-ink">{item.percentage}%</span>
               </div>
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 border-t border-line pt-4">
             {weeks.map((week, index) => (
               <button
                 className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
