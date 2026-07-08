@@ -25,6 +25,8 @@ const GROUP_HEX: Record<RadarGroup, string> = {
   Legs: "#059669",
 };
 
+const GROUP_LABEL_ORDER: RadarGroup[] = ["Legs", "Arms", "Back", "Shoulders", "Chest"];
+
 const polarPoint = (index: number, value: number) => {
   const angle = (-90 + index * (360 / RADAR_GROUPS.length)) * (Math.PI / 180);
   const distance = (Math.max(0, Math.min(value, 100)) / 100) * RADIUS;
@@ -87,6 +89,10 @@ export function WeeklyMuscleRadarChart({ weeks }: { weeks: WeeklyMuscleGroupVolu
     trackedSets > 0
       ? distribution.reduce((best, item) => (item.percentage > best.percentage ? item : best), distribution[0])
       : null;
+  const secondaryGroups = distribution
+    .filter((item) => item.group !== topGroup?.group)
+    .sort((a, b) => b.percentage - a.percentage)
+    .slice(0, 2);
   const canMoveBack = selectedIndex > 0;
   const canMoveForward = selectedIndex < weeks.length - 1;
 
@@ -127,31 +133,41 @@ export function WeeklyMuscleRadarChart({ weeks }: { weeks: WeeklyMuscleGroupVolu
         </div>
       </div>
 
-      <div className="mt-5 grid items-center gap-5 xl:grid-cols-[230px_minmax(300px,420px)_minmax(260px,1fr)]">
-        <div className="space-y-4">
+      <div className="mt-5 grid min-h-60 items-center gap-5 lg:grid-cols-[210px_minmax(280px,1fr)]">
+        <div className="space-y-3">
           <div>
             <p className="text-sm text-slate-500">Most trained</p>
-            <p className="text-2xl font-semibold text-ink">{topGroup?.group ?? "No tracked sets"}</p>
+            <p className="text-xl font-semibold text-ink">{topGroup?.group ?? "No tracked sets"}</p>
             <p className="text-sm text-slate-500">
               {topGroup ? `${topGroup.percentage}% of stimulus` : selectedWeek.label}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-line pt-4">
-            <div>
-              <p className="text-xs uppercase text-slate-400">Week</p>
-              <p className="text-sm font-semibold text-ink">{selectedWeek.label}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-slate-400">Volume</p>
-              <p className="text-sm font-semibold text-ink">{trackedSets.toFixed(1)}</p>
-            </div>
+          <div className="space-y-2 border-t border-line pt-4">
+            <p className="text-xs uppercase text-slate-400">Next highest</p>
+            {secondaryGroups.length > 0 ? (
+              secondaryGroups.map((item) => (
+                <div className="flex items-center justify-between gap-3 text-sm" key={item.group}>
+                  <span className="flex items-center gap-2 text-slate-600">
+                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: GROUP_HEX[item.group] }} />
+                    {item.group}
+                  </span>
+                  <span className="font-semibold text-ink">{item.percentage}%</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-slate-500">No tracked stimulus</p>
+            )}
+          </div>
+          <div className="border-t border-line pt-4">
+            <p className="text-xs uppercase text-slate-400">Volume</p>
+            <p className="text-sm font-semibold text-ink">{trackedSets.toFixed(1)} stimulus units</p>
           </div>
         </div>
 
-        <div className="flex justify-center overflow-x-auto xl:justify-center">
+        <div className="flex flex-col items-center gap-3 overflow-x-auto">
           <svg
             aria-label={`${selectedWeek.label} muscle distribution radar chart`}
-            className="h-auto w-full max-w-[410px]"
+            className="h-auto w-full max-w-[330px]"
             role="img"
             viewBox="0 0 360 360"
           >
@@ -198,42 +214,17 @@ export function WeeklyMuscleRadarChart({ weeks }: { weeks: WeeklyMuscleGroupVolu
               );
             })}
           </svg>
-        </div>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            {distribution.map((item) => (
-              <div className="grid grid-cols-[86px_minmax(0,1fr)_44px] items-center gap-2" key={item.group}>
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <span className={`h-2.5 w-2.5 rounded-sm ${GROUP_STYLES[item.group]}`} />
-                  {item.group}
-                </div>
-                <div className="h-2.5 overflow-hidden rounded-full bg-paper">
-                  <div
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: GROUP_HEX[item.group], width: `${item.percentage}%` }}
-                  />
-                </div>
-                <span className="text-right text-sm font-semibold text-ink">{item.percentage}%</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap gap-2 border-t border-line pt-4">
-            {weeks.map((week, index) => (
-              <button
-                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
-                  index === selectedIndex
-                    ? "border-river bg-river text-white"
-                    : "border-line text-slate-600 hover:bg-paper"
-                }`}
-                key={week.weekStart}
-                onClick={() => setSelectedIndex(index)}
-                type="button"
-              >
-                {week.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+            {GROUP_LABEL_ORDER.map((group) => {
+              const item = distribution.find((entry) => entry.group === group);
+              return (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600" key={group}>
+                  <span className={`h-2.5 w-2.5 rounded-sm ${GROUP_STYLES[group]}`} />
+                  {group} {item?.percentage ?? 0}%
+                </span>
+              );
+            })}
           </div>
         </div>
       </div>

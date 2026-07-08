@@ -6,9 +6,26 @@ export interface DashboardData {
   currentStreakDays: number;
   lastSync: { startedAt: string; finishedAt: string | null; status: string } | null;
   recentWorkouts: WorkoutSummary[];
-  setsByMuscleGroupPerWeek: WeeklyMuscleGroupVolume[];
+  todayWorkout: TodayWorkout | null;
   muscleDistributionPerWeek: WeeklyMuscleGroupVolume[];
   trainingDays: TrainingDay[];
+}
+
+export interface TodayWorkout {
+  id: string;
+  title: string;
+  startTime: string;
+  durationMinutes: number;
+  setCount: number;
+  exerciseCount: number;
+  muscleFocus: {
+    muscleGroup: string;
+    setCount: number;
+  }[];
+  topLifts: {
+    exerciseTitle: string;
+    highlight: string;
+  }[];
 }
 
 export interface WeeklyMuscleGroupVolume {

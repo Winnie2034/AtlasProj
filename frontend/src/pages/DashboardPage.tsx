@@ -1,10 +1,9 @@
 import { CalendarCheck, Dumbbell, Flame, RefreshCw } from "lucide-react";
 import { ErrorState } from "../components/common/ErrorState";
 import { LoadingState } from "../components/common/LoadingState";
-import { RecentWorkoutsList } from "../components/dashboard/RecentWorkoutsList";
-import { SetsByMuscleGroupChart } from "../components/dashboard/SetsByMuscleGroupChart";
+import { CurrentWeekHeatmap } from "../components/dashboard/CurrentWeekHeatmap";
 import { StatCard } from "../components/dashboard/StatCard";
-import { TrainingDaysHeatmap } from "../components/dashboard/TrainingDaysHeatmap";
+import { TodayWorkoutCard } from "../components/dashboard/TodayWorkoutCard";
 import { WeeklyMuscleRadarChart } from "../components/dashboard/WeeklyMuscleRadarChart";
 import { SyncButton } from "../components/settings/SyncButton";
 import { useDashboard } from "../hooks/useDashboard";
@@ -46,11 +45,14 @@ export function DashboardPage() {
         />
       </div>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <SetsByMuscleGroupChart weeks={data.setsByMuscleGroupPerWeek} />
-        <RecentWorkoutsList workouts={data.recentWorkouts} />
+        <WeeklyMuscleRadarChart weeks={data.muscleDistributionPerWeek} />
+        <CurrentWeekHeatmap days={data.trainingDays} />
       </div>
-      <TrainingDaysHeatmap days={data.trainingDays} />
-      <WeeklyMuscleRadarChart weeks={data.muscleDistributionPerWeek} />
+      <TodayWorkoutCard
+        currentStreakDays={data.currentStreakDays}
+        lastWorkout={data.recentWorkouts[0]}
+        workout={data.todayWorkout}
+      />
     </div>
   );
 }

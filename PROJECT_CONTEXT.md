@@ -82,9 +82,9 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - `backend/src/services/routines.service.ts` - read-only Hevy routines loading/serialization.
 - `backend/src/routes/routines.routes.ts` - `/api/routines` backend route.
 - `frontend/src/pages/DashboardPage.tsx` - dashboard analytics UI.
-- `frontend/src/components/dashboard/SetsByMuscleGroupChart.tsx` - weekly sets-by-muscle-group chart.
-- `frontend/src/components/dashboard/TrainingDaysHeatmap.tsx` - calendar-style training-day view.
-- `frontend/src/components/dashboard/WeeklyMuscleRadarChart.tsx` - full-width weekly radar chart for percentage muscle distribution.
+- `frontend/src/components/dashboard/CurrentWeekHeatmap.tsx` - compact current-week training heatmap shown beside the radar.
+- `frontend/src/components/dashboard/TodayWorkoutCard.tsx` - bottom dashboard panel for today's workout summary and no-workout empty state.
+- `frontend/src/components/dashboard/WeeklyMuscleRadarChart.tsx` - weekly radar chart for percentage muscle distribution.
 - `frontend/src/components/settings/SyncButton.tsx` - sync trigger and top-center result toast.
 - `frontend/src/pages/RoutinesPage.tsx` - read-only routines UI.
 - `frontend/src/components/routines/RoutineCard.tsx` - routine detail card UI.
@@ -133,18 +133,18 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - schema errors now include the failing field path.
 - Dashboard was expanded from a basic workout summary into an analytics page:
   - top stat row shows total workouts, workouts this month, current streak, and last sync.
-  - main chart shows sets per muscle group per week for the last 8 weeks.
-  - recent workouts are compact and sit beside the weekly muscle-group chart.
-  - training days display as a full-width calendar-style grid with week ranges, weekday labels, day numbers, set counts, and a volume legend.
-  - a full-width weekly radar chart was added at the bottom of the dashboard in `WeeklyMuscleRadarChart`.
-  - the radar chart uses the last 8 weeks from `setsByMuscleGroupPerWeek`, lets the user switch weeks, and displays percentage distribution for Back, Chest, Shoulders, Arms, and Legs only.
+  - main chart shows weekly muscle distribution for the last 8 weeks.
+  - a compact current-week heatmap sits beside the weekly muscle distribution radar.
+  - bottom panel shows today's workout summary with duration, set volume, muscle focus, top lifts, and a no-workout empty state.
+  - the weekly radar chart is the main dashboard chart in the top analytics row.
+  - the radar chart uses the last 8 weeks from `muscleDistributionPerWeek`, lets the user switch weeks, and displays percentage distribution for Back, Chest, Shoulders, Arms, and Legs only.
   - Core and Other are intentionally skipped in the radar chart.
   - the radar now uses weighted training stimulus from cached Hevy exercise template metadata, not the old title-only classifier.
   - Hevy detailed muscles are mapped into Atlas groups: chest -> Chest; shoulders -> Shoulders; biceps/triceps/forearms -> Arms; lats/upper_back/lower_back/traps/neck -> Back; quadriceps/hamstrings/glutes/calves/adductors/abductors -> Legs; abdominals -> Core.
   - Weighted model: if an exercise has secondary muscles, its primary muscle group gets 70% of each set and secondary muscles split the remaining 30%; if there are no secondary muscles, the primary group gets 100%.
   - sync results appear as a temporary top-center toast instead of a card below the Sync button.
-  - backend returns `workoutsThisMonth`, `currentStreakDays`, raw `setsByMuscleGroupPerWeek`, weighted `muscleDistributionPerWeek`, and `trainingDays` from `GET /api/dashboard`.
-  - raw `setsByMuscleGroupPerWeek` still uses the older title-based classifier for the existing stacked chart, while weighted `muscleDistributionPerWeek` uses cached Hevy template metadata for the radar and falls back to the title classifier only when metadata is missing.
+  - backend returns `workoutsThisMonth`, `currentStreakDays`, `muscleDistributionPerWeek`, `trainingDays`, and `todayWorkout` from `GET /api/dashboard`.
+  - `muscleDistributionPerWeek` and `todayWorkout.muscleFocus` use cached Hevy template metadata and fall back to the title classifier only when metadata is missing.
   - verified radar implementation with `npm.cmd run typecheck`, `npm.cmd run build`, and a local browser check against `http://localhost:5173/`.
   - Verified with `npm.cmd run typecheck`, `npm.cmd run build`, and a local browser/API smoke check against `http://localhost:5173/` and `http://localhost:4000/api/dashboard`.
 - Exercise template metadata cache:
@@ -157,7 +157,7 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - Dashboard reads cached metadata locally; it does not call Hevy.
   - Fallback remains the old title-based classifier if metadata is missing.
   - Local verification populated 37 distinct exercise template metadata rows from existing synced workouts, then a second ensure pass fetched 0 rows, confirming no redundant Hevy calls.
-  - API smoke check confirmed `GET /api/dashboard` includes both raw `setsByMuscleGroupPerWeek` and weighted `muscleDistributionPerWeek`.
+  - API smoke check confirmed `GET /api/dashboard` includes weighted `muscleDistributionPerWeek`.
   - Browser check confirmed the radar displays "Weighted training stimulus" and week switching still works.
   - Final sanity check before commit:
     - `npm.cmd run typecheck` passed.
@@ -216,6 +216,8 @@ backend/src/services/dashboard.service.ts
 backend/src/services/exerciseTemplateMetadata.service.ts
 backend/src/repositories/exerciseTemplateMetadata.repository.ts
 frontend/src/components/dashboard/WeeklyMuscleRadarChart.tsx
+frontend/src/components/dashboard/CurrentWeekHeatmap.tsx
+frontend/src/components/dashboard/TodayWorkoutCard.tsx
 ```
 
 Then inspect the current task-specific files before editing.
