@@ -1,4 +1,5 @@
-import { ArrowRight, Dumbbell } from "lucide-react";
+import { ArrowRight, Clock, Dumbbell, Layers3, ListChecks, Target, Trophy } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchSelectedWorkout } from "../../api/dashboard.api";
@@ -107,15 +108,15 @@ export function TodayWorkoutCard({
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <Metric label="Duration" value={`${selectedWorkout.durationMinutes} min`} />
-        <Metric label="Volume" value={`${selectedWorkout.setCount} sets`} />
-        <Metric label="Exercises" value={selectedWorkout.exerciseCount} />
+        <Metric icon={Clock} label="Duration" value={`${selectedWorkout.durationMinutes} min`} />
+        <Metric icon={Layers3} label="Volume" value={`${selectedWorkout.setCount} sets`} />
+        <Metric icon={ListChecks} label="Exercises" value={selectedWorkout.exerciseCount} />
       </div>
 
       <div className="mt-4 rounded-md border border-line p-4">
         <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.82fr)]">
           <div className="flex min-h-[150px] flex-col">
-            <h4 className="text-sm font-semibold text-ink">Muscle Focus</h4>
+            <PanelHeading icon={Target} label="Muscle Focus" />
             <div className="mt-3 grid flex-1 auto-rows-fr gap-2">
               {muscleFocus.length > 0 ? (
                 muscleFocus.map((group) => (
@@ -142,7 +143,7 @@ export function TodayWorkoutCard({
           </div>
 
           <div className="flex min-h-[150px] flex-col">
-            <h4 className="text-sm font-semibold text-ink">Top Lifts</h4>
+            <PanelHeading icon={Trophy} label="Top Lifts" />
             <div className="mt-3 flex-1 divide-y divide-line rounded-md border border-line">
               {selectedWorkout.topLifts.length > 0 ? (
                 selectedWorkout.topLifts.map((lift) => (
@@ -164,12 +165,30 @@ export function TodayWorkoutCard({
   );
 }
 
-function Metric({ label, value }: { label: string; value: string | number }) {
+function Metric({ label, value, icon: Icon }: { label: string; value: string | number; icon?: LucideIcon }) {
   return (
-    <div className="rounded-md border border-line bg-paper px-3 py-2">
-      <p className="text-xs uppercase text-slate-400">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-ink">{value}</p>
+    <div className="flex items-center gap-3 rounded-md border border-line bg-paper px-3 py-2">
+      {Icon ? (
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-river">
+          <Icon size={16} />
+        </div>
+      ) : null}
+      <div className="min-w-0">
+        <p className="text-xs uppercase text-slate-400">{label}</p>
+        <p className="mt-1 truncate text-sm font-semibold text-ink">{value}</p>
+      </div>
     </div>
+  );
+}
+
+function PanelHeading({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+  return (
+    <h4 className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-paper text-river">
+        <Icon size={15} />
+      </span>
+      {label}
+    </h4>
   );
 }
 
@@ -224,8 +243,8 @@ function TodayWorkoutEmpty({
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-3">
-        <Metric label="Current streak" value={`${currentStreakDays} active days`} />
-        <Metric label="Status" value="Rest or pending sync" />
+        <Metric icon={Trophy} label="Current streak" value={`${currentStreakDays} active days`} />
+        <Metric icon={Dumbbell} label="Status" value="Rest or pending sync" />
         <div className="rounded-md border border-line bg-paper px-3 py-2">
           <p className="text-xs uppercase text-slate-400">Last session</p>
           {lastWorkout ? (

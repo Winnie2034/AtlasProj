@@ -1,4 +1,17 @@
-import { ArrowRight, CalendarDays, Clock, Dumbbell, Filter, Search, SlidersHorizontal } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  Clock,
+  Dumbbell,
+  Filter,
+  Layers3,
+  ListChecks,
+  Search,
+  SlidersHorizontal,
+  Target,
+  Trophy,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { EmptyState } from "../components/common/EmptyState";
@@ -353,12 +366,17 @@ function WorkoutPreview({ query }: { query: ReturnType<typeof useWorkoutDetail> 
   return (
     <section className="rounded-md border border-line bg-white shadow-panel">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
-        <div>
-          <p className="text-sm text-slate-500">Selected workout</p>
-          <h3 className="text-2xl font-semibold text-ink">{workout.title}</h3>
-          <p className="mt-1 text-sm text-slate-500">
-            {dateGroupLabel(workout.startTime)} - {workout.durationMinutes} min
-          </p>
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-river text-white">
+            <Dumbbell size={19} />
+          </div>
+          <div>
+            <p className="text-sm text-slate-500">Selected workout</p>
+            <h3 className="text-2xl font-semibold text-ink">{workout.title}</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {dateGroupLabel(workout.startTime)} - {workout.durationMinutes} min
+            </p>
+          </div>
         </div>
         <Link
           className="focus-ring inline-flex items-center gap-2 rounded-md border border-line px-3 py-2 text-sm font-medium text-slate-700 hover:bg-paper"
@@ -371,14 +389,14 @@ function WorkoutPreview({ query }: { query: ReturnType<typeof useWorkoutDetail> 
 
       <div className="grid gap-4 p-5">
         <div className="grid gap-3 sm:grid-cols-3">
-          <PreviewMetric label="Duration" value={`${workout.durationMinutes} min`} />
-          <PreviewMetric label="Volume" value={`${workout.setCount} sets`} />
-          <PreviewMetric label="Exercises" value={workout.exerciseCount} />
+          <PreviewMetric icon={Clock} label="Duration" value={`${workout.durationMinutes} min`} />
+          <PreviewMetric icon={Layers3} label="Volume" value={`${workout.setCount} sets`} />
+          <PreviewMetric icon={ListChecks} label="Exercises" value={workout.exerciseCount} />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(240px,0.9fr)_minmax(320px,1.1fr)]">
           <section className="rounded-md border border-line p-4">
-            <h4 className="text-sm font-semibold text-ink">Muscle Focus</h4>
+            <PanelHeading icon={Target} label="Muscle Focus" />
             <div className="mt-3 grid gap-2">
               {focus.length ? (
                 focus.map((group) => (
@@ -400,7 +418,7 @@ function WorkoutPreview({ query }: { query: ReturnType<typeof useWorkoutDetail> 
           </section>
 
           <section className="rounded-md border border-line p-4">
-            <h4 className="text-sm font-semibold text-ink">Top Lifts</h4>
+            <PanelHeading icon={Trophy} label="Top Lifts" />
             <div className="mt-3 divide-y divide-line rounded-md border border-line">
               {lifts.length ? (
                 <>
@@ -424,7 +442,7 @@ function WorkoutPreview({ query }: { query: ReturnType<typeof useWorkoutDetail> 
 
         <section className="rounded-md border border-line">
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <h4 className="text-sm font-semibold text-ink">Exercise preview</h4>
+            <PanelHeading icon={ListChecks} label="Exercise preview" />
             <span className="text-xs text-slate-400">{workout.exercises.length} exercises</span>
           </div>
           <div className="hidden grid-cols-[minmax(0,1fr)_56px_minmax(96px,0.8fr)_minmax(140px,1fr)_92px] gap-3 border-b border-line px-4 py-2 text-xs uppercase text-slate-400 md:grid">
@@ -445,12 +463,28 @@ function WorkoutPreview({ query }: { query: ReturnType<typeof useWorkoutDetail> 
   );
 }
 
-function PreviewMetric({ label, value }: { label: string; value: string | number }) {
+function PreviewMetric({ label, value, icon: Icon }: { label: string; value: string | number; icon: LucideIcon }) {
   return (
-    <div className="rounded-md border border-line bg-paper px-3 py-2">
-      <p className="text-xs uppercase text-slate-400">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-ink">{value}</p>
+    <div className="flex items-center gap-3 rounded-md border border-line bg-paper px-3 py-2">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-river">
+        <Icon size={16} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs uppercase text-slate-400">{label}</p>
+        <p className="mt-1 truncate text-sm font-semibold text-ink">{value}</p>
+      </div>
     </div>
+  );
+}
+
+function PanelHeading({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+  return (
+    <h4 className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-paper text-river">
+        <Icon size={15} />
+      </span>
+      {label}
+    </h4>
   );
 }
 

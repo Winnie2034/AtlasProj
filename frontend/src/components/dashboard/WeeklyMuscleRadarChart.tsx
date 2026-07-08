@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { WeeklyMuscleGroupVolume } from "../../types/api";
 
@@ -103,9 +103,14 @@ export function WeeklyMuscleRadarChart({ weeks }: { weeks: WeeklyMuscleGroupVolu
   return (
     <section className="rounded-md border border-line bg-white p-4 shadow-panel">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="font-semibold">Weekly Muscle Distribution</h3>
-          <p className="text-sm text-slate-500">Weighted training stimulus for the selected week</p>
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-river text-white">
+            <Activity size={18} />
+          </div>
+          <div>
+            <h3 className="font-semibold">Weekly Muscle Distribution</h3>
+            <p className="text-sm text-slate-500">Weighted training stimulus for the selected week</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
