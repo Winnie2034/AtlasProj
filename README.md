@@ -5,7 +5,7 @@ Atlas is a single-user workout data platform that syncs Hevy workout data into P
 ## Current Features
 
 - Sync Hevy workout history into local PostgreSQL.
-- Browse synced workouts and workout details.
+- Browse synced workouts in a split-view explorer with search, date range, muscle filters, and workout preview.
 - Browse read-only Hevy routines.
 - View dashboard analytics:
   - total workouts
@@ -14,7 +14,7 @@ Atlas is a single-user workout data platform that syncs Hevy workout data into P
   - last sync status
   - weekly muscle distribution radar
   - current-week training heatmap
-  - today's workout summary with empty state
+  - date-filtered workout summary with empty state for days without synced workouts
 - Trigger sync from the UI. Sync results show as a temporary top-center toast instead of shifting the page layout.
 
 ## Structure
@@ -114,10 +114,12 @@ git push -u origin main
 
 The Hevy integration is isolated behind `HevyClient` and validates responses with Zod. Before using real sync data, verify the live Swagger schema at `https://api.hevyapp.com/docs/` with your API access because Hevy may change response fields.
 
-Dashboard muscle-group analytics use cached Hevy exercise template metadata for the weekly radar chart and today's workout summary. The radar shows weighted training stimulus across Back, Chest, Shoulders, Arms, and Legs for the selected week, skipping Core and Other.
+Dashboard muscle-group analytics use cached Hevy exercise template metadata for the weekly radar chart and selected-date workout summary. The radar shows weighted training stimulus across Back, Chest, Shoulders, Arms, and Legs for the selected week, skipping Core and Other.
 
 Atlas stores Hevy template metadata locally in `exercise_template_metadata`, so the dashboard does not call Hevy while rendering. During workout sync and routine loading, Atlas fetches only missing exercise template metadata and reuses cached rows afterward. The radar and today's workout muscle-focus model give the primary muscle group 70% of each set and split the remaining 30% across secondary muscles; exercises without secondary muscles count 100% toward their primary group.
 
+Workout muscle focus percentages are calculated in the frontend at render time with a shared helper, not stored in the database. The Workouts page currently shows the first page of the filtered workout list in its split-view explorer and intentionally does not render bottom pagination controls.
+
 A future improvement could add a Settings page for manual overrides, but the current implementation already uses Hevy's `primary_muscle_group` and `secondary_muscle_groups` fields when available.
 
-Recent sanity checks verified typecheck, build, migration status, direct Hevy sync, dashboard analytics, routines loading, and metadata cache reuse. If `prisma generate` reports a Windows `EPERM` rename error for the Prisma query engine DLL, close running Node/API processes and retry; the generated client may simply be locked by a local process.
+Recent sanity checks verified typecheck, build, browser smoke checks for Workouts and Dashboard, migration status, direct Hevy sync, dashboard analytics, routines loading, and metadata cache reuse. If `prisma generate` reports a Windows `EPERM` rename error for the Prisma query engine DLL, close running Node/API processes and retry; the generated client may simply be locked by a local process.

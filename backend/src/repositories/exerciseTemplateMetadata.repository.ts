@@ -20,6 +20,10 @@ export class ExerciseTemplateMetadataRepository {
     });
   }
 
+  findAll() {
+    return this.db.exerciseTemplateMetadata.findMany();
+  }
+
   async missingTemplateIds(templateIds: string[]) {
     const uniqueIds = Array.from(new Set(templateIds.filter((id) => id && id !== "unknown")));
     if (uniqueIds.length === 0) return [];

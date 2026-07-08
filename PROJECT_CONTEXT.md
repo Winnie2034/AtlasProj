@@ -82,13 +82,15 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - `backend/src/services/routines.service.ts` - read-only Hevy routines loading/serialization.
 - `backend/src/routes/routines.routes.ts` - `/api/routines` backend route.
 - `frontend/src/pages/DashboardPage.tsx` - dashboard analytics UI.
+- `frontend/src/pages/WorkoutListPage.tsx` - split-view Workouts explorer with search, date range, muscle filters, grouped workout history, and selected-workout preview.
 - `frontend/src/components/dashboard/CurrentWeekHeatmap.tsx` - compact current-week training heatmap shown beside the radar.
-- `frontend/src/components/dashboard/TodayWorkoutCard.tsx` - bottom dashboard panel for today's workout summary and no-workout empty state.
+- `frontend/src/components/dashboard/TodayWorkoutCard.tsx` - bottom dashboard panel with a date picker, selected-date workout summary, and no-workout empty state.
 - `frontend/src/components/dashboard/WeeklyMuscleRadarChart.tsx` - weekly radar chart for percentage muscle distribution.
 - `frontend/src/components/settings/SyncButton.tsx` - sync trigger and top-center result toast.
 - `frontend/src/pages/RoutinesPage.tsx` - read-only routines UI.
 - `frontend/src/components/routines/RoutineCard.tsx` - routine detail card UI.
 - `frontend/src/pages/SettingsPage.tsx` - sync UI entry point.
+- `frontend/src/utils/muscleFocus.ts` - shared frontend helper that converts live muscle set counts into display percentages.
 - `hevy-api-architecture-overview.md` - local Hevy API reference summary used for endpoint/schema alignment.
 - `.gitignore` - keeps local secrets, dependencies, build output, and Codex metadata out of Git.
 
@@ -131,11 +133,22 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - workout/routine set type accepts `set_type` and normalizes it to `type`.
   - missing/null `exercise_template_id` is converted to `"unknown"`.
   - schema errors now include the failing field path.
+- Workouts page was redesigned from a table into a split-view explorer:
+  - left pane groups workout summaries by date and shows duration, sets, exercise count, and muscle chips.
+  - right pane previews the selected workout with metrics, muscle focus, top lifts, exercise preview, and a Details link.
+  - bottom pagination controls were removed; the page currently requests the first page of the filtered workout list.
+  - old table/search/pagination components were deleted after the split-view explorer replaced them.
+  - `/api/workouts` summaries now include `durationMinutes` and `muscleGroups`.
+  - `/api/workouts` supports `startDate`, `endDate`, and `muscleGroup` query filters in addition to search/sort/pagination.
+  - muscle tags and filters use cached Hevy exercise template metadata when available, with title-pattern fallback only when metadata is missing.
+  - summary chips use the dashboard-style weighted muscle model so primary muscles outrank secondary muscles.
+  - exercise preview shows per-set comma-separated reps and weights so each rep value lines up with its corresponding weight value.
+  - workout preview muscle focus displays percentages calculated on the frontend from live set counts.
 - Dashboard was expanded from a basic workout summary into an analytics page:
   - top stat row shows total workouts, workouts this month, current streak, and last sync.
   - main chart shows weekly muscle distribution for the last 8 weeks.
   - a compact current-week heatmap sits beside the weekly muscle distribution radar.
-  - bottom panel shows today's workout summary with duration, set volume, muscle focus, top lifts, and a no-workout empty state.
+  - bottom panel shows a date-filtered workout summary with duration, set volume, muscle focus, top lifts, and a no-workout empty state.
   - the weekly radar chart is the main dashboard chart in the top analytics row.
   - the radar chart uses the last 8 weeks from `muscleDistributionPerWeek`, lets the user switch weeks, and displays percentage distribution for Back, Chest, Shoulders, Arms, and Legs only.
   - Core and Other are intentionally skipped in the radar chart.
@@ -143,8 +156,11 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - Hevy detailed muscles are mapped into Atlas groups: chest -> Chest; shoulders -> Shoulders; biceps/triceps/forearms -> Arms; lats/upper_back/lower_back/traps/neck -> Back; quadriceps/hamstrings/glutes/calves/adductors/abductors -> Legs; abdominals -> Core.
   - Weighted model: if an exercise has secondary muscles, its primary muscle group gets 70% of each set and secondary muscles split the remaining 30%; if there are no secondary muscles, the primary group gets 100%.
   - sync results appear as a temporary top-center toast instead of a card below the Sync button.
-  - backend returns `workoutsThisMonth`, `currentStreakDays`, `muscleDistributionPerWeek`, `trainingDays`, and `todayWorkout` from `GET /api/dashboard`.
-  - `muscleDistributionPerWeek` and `todayWorkout.muscleFocus` use cached Hevy template metadata and fall back to the title classifier only when metadata is missing.
+  - backend returns `workoutsThisMonth`, `currentStreakDays`, `muscleDistributionPerWeek`, `trainingDays`, `selectedDate`, and `selectedWorkout` from `GET /api/dashboard`.
+  - `GET /api/dashboard/selected-workout?date=YYYY-MM-DD` selects which workout date is shown in the bottom dashboard panel without refetching the whole dashboard; invalid calendar dates return validation errors.
+  - `muscleDistributionPerWeek` and `selectedWorkout.muscleFocus` use cached Hevy template metadata and fall back to the title classifier only when metadata is missing.
+  - `TodayWorkoutCard` owns its selected date with local React state and calls `useSelectedWorkout` itself, so changing the date updates only that card instead of making the whole dashboard re-render through parent state.
+  - dashboard and Workouts preview muscle-focus percentages share `frontend/src/utils/muscleFocus.ts`; percentages are not stored in PostgreSQL.
   - verified radar implementation with `npm.cmd run typecheck`, `npm.cmd run build`, and a local browser check against `http://localhost:5173/`.
   - Verified with `npm.cmd run typecheck`, `npm.cmd run build`, and a local browser/API smoke check against `http://localhost:5173/` and `http://localhost:4000/api/dashboard`.
 - Exercise template metadata cache:
@@ -162,6 +178,9 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - Final sanity check before commit:
     - `npm.cmd run typecheck` passed.
     - `npm.cmd run build` passed.
+    - Browser smoke check passed for Workouts: split view renders, muscle filter works, no bottom pagination text, and no stale `page` query param.
+    - Browser smoke check passed for Dashboard: the date picker renders, selected workout muscle focus displays percentages, and no `NaN`/`undefined` text leaked.
+    - Browser console error check returned no errors.
     - `npm.cmd --workspace backend exec prisma migrate status` reported the database schema is up to date.
     - Direct `SyncService.runSync()` against Hevy completed successfully with no errors. At that time Hevy returned no new workout events for the current cursor, so counts remained 20 workouts, 119 exercises, 411 sets, and 37 cached template metadata rows.
     - Metadata ensure check over 37 distinct local exercise template IDs fetched 0 new rows and failed 0 rows, confirming cache reuse.
@@ -218,6 +237,8 @@ backend/src/repositories/exerciseTemplateMetadata.repository.ts
 frontend/src/components/dashboard/WeeklyMuscleRadarChart.tsx
 frontend/src/components/dashboard/CurrentWeekHeatmap.tsx
 frontend/src/components/dashboard/TodayWorkoutCard.tsx
+frontend/src/pages/WorkoutListPage.tsx
+frontend/src/utils/muscleFocus.ts
 ```
 
 Then inspect the current task-specific files before editing.

@@ -1,14 +1,20 @@
 export type ApiMeta = { page: number; pageSize: number; total: number };
 
 export interface DashboardData {
+  selectedDate: string;
   workoutCount: number;
   workoutsThisMonth: number;
   currentStreakDays: number;
   lastSync: { startedAt: string; finishedAt: string | null; status: string } | null;
   recentWorkouts: WorkoutSummary[];
-  todayWorkout: TodayWorkout | null;
+  selectedWorkout: TodayWorkout | null;
   muscleDistributionPerWeek: WeeklyMuscleGroupVolume[];
   trainingDays: TrainingDay[];
+}
+
+export interface SelectedWorkoutData {
+  selectedDate: string;
+  selectedWorkout: TodayWorkout | null;
 }
 
 export interface TodayWorkout {
@@ -50,8 +56,10 @@ export interface WorkoutSummary {
   id: string;
   title: string;
   startTime: string;
+  durationMinutes: number;
   exerciseCount: number;
   setCount: number;
+  muscleGroups: string[];
 }
 
 export interface SetDetail {
@@ -71,6 +79,7 @@ export interface ExerciseDetail {
   notes: string | null;
   index: number;
   supersetId: number | null;
+  muscleGroups: string[];
   sets: SetDetail[];
 }
 
@@ -82,6 +91,9 @@ export interface WorkoutDetail extends WorkoutSummary {
 
 export interface WorkoutListParams {
   search?: string;
+  startDate?: string;
+  endDate?: string;
+  muscleGroup?: string;
   sortBy?: "startTime" | "title";
   sortDir?: "asc" | "desc";
   page?: number;

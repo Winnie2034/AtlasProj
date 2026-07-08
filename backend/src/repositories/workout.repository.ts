@@ -3,6 +3,9 @@ import { prisma } from "../db/prisma.js";
 
 export type WorkoutListParams = {
   search?: string;
+  startDate?: Date;
+  endDate?: Date;
+  muscleTemplateIds?: string[];
   sortBy: "startTime" | "title";
   sortDir: "asc" | "desc";
   page: number;
@@ -47,9 +50,21 @@ export class WorkoutRepository {
   }
 
   async list(params: WorkoutListParams) {
-    const where: Prisma.WorkoutWhereInput = params.search
-      ? { title: { contains: params.search, mode: "insensitive" } }
-      : {};
+    const where: Prisma.WorkoutWhereInput = {};
+    if (params.search) {
+      where.title = { contains: params.search, mode: "insensitive" };
+    }
+    if (params.startDate || params.endDate) {
+      where.startTime = {
+        ...(params.startDate ? { gte: params.startDate } : {}),
+        ...(params.endDate ? { lt: params.endDate } : {}),
+      };
+    }
+    if (params.muscleTemplateIds) {
+      where.exercises = {
+        some: { hevyExerciseTemplateId: { in: params.muscleTemplateIds } },
+      };
+    }
     const orderBy =
       params.sortBy === "title"
         ? { title: params.sortDir }
@@ -81,6 +96,14 @@ export class WorkoutRepository {
     return this.db.workout.findMany({
       where: { startTime: { gte: startTime } },
       orderBy: { startTime: "asc" },
+      include: { exercises: { include: { sets: true } } },
+    });
+  }
+
+  findBetween(startTime: Date, endTime: Date) {
+    return this.db.workout.findMany({
+      where: { startTime: { gte: startTime, lt: endTime } },
+      orderBy: { startTime: "desc" },
       include: { exercises: { include: { sets: true } } },
     });
   }

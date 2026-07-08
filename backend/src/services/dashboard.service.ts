@@ -7,6 +7,9 @@ const MUSCLE_GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Ot
 type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
 type MuscleCounts = Record<MuscleGroup, number>;
 type DashboardWorkout = Awaited<ReturnType<WorkoutRepository["findSince"]>>[number];
+type DashboardParams = {
+  selectedDate?: Date;
+};
 
 const summarizeWorkout = (workout: Awaited<ReturnType<WorkoutRepository["findRecent"]>>[number]) => ({
   id: workout.id,
@@ -72,8 +75,8 @@ const weekLabel = (weekStart: Date) => {
 const classifyMuscleGroup = (title: string): MuscleGroup => {
   const name = title.toLowerCase();
 
-  if (/(bench|chest|pec|push[- ]?up|dip|fly|crossover)/.test(name)) return "Chest";
   if (/(row|pull[- ]?up|chin[- ]?up|lat|pulldown|deadlift|back extension|shrug|trap)/.test(name)) return "Back";
+  if (/(bench|chest|pec|push[- ]?up|dip|fly|crossover)/.test(name)) return "Chest";
   if (/(squat|leg press|leg curl|leg extension|lunge|calf|quad|hamstring|glute|hip thrust|rdl|romanian)/.test(name)) {
     return "Legs";
   }
@@ -273,15 +276,23 @@ export class DashboardService {
     private templateMetadata = new ExerciseTemplateMetadataRepository(),
   ) {}
 
-  async getDashboard() {
+  async getDashboard(params: DashboardParams = {}) {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const weeklyStart = startOfWeek(addDays(now, -49));
     const activityStart = startOfWeek(addDays(now, -28));
-    const todayStart = startOfDay(now);
-    const tomorrowStart = addDays(todayStart, 1);
+    const selectedDate = startOfDay(params.selectedDate ?? now);
+    const selectedDateEnd = addDays(selectedDate, 1);
 
-    const [workoutCount, workoutsThisMonth, lastSync, recentWorkouts, analyticsWorkouts, activityWorkouts] =
+    const [
+      workoutCount,
+      workoutsThisMonth,
+      lastSync,
+      recentWorkouts,
+      analyticsWorkouts,
+      activityWorkouts,
+      selectedDateWorkouts,
+    ] =
       await Promise.all([
         this.workouts.countAll(),
         this.workouts.countSince(monthStart),
@@ -289,23 +300,23 @@ export class DashboardService {
         this.workouts.findRecent(4),
         this.workouts.findSince(weeklyStart),
         this.workouts.findSince(activityStart),
+        this.workouts.findBetween(selectedDate, selectedDateEnd),
       ]);
 
     const metadata = await this.templateMetadata.findByTemplateIds(
       Array.from(
         new Set(
-          analyticsWorkouts.flatMap((workout) =>
+          [...analyticsWorkouts, ...selectedDateWorkouts].flatMap((workout) =>
             workout.exercises.map((exercise) => exercise.hevyExerciseTemplateId).filter((id) => id !== "unknown"),
           ),
         ),
       ),
     );
     const metadataByTemplateId = new Map(metadata.map((row) => [row.hevyExerciseTemplateId, row]));
-    const todayWorkout = activityWorkouts
-      .filter((workout) => workout.startTime >= todayStart && workout.startTime < tomorrowStart)
-      .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())[0];
+    const selectedWorkout = selectedDateWorkouts[0];
 
     return {
+      selectedDate: dateKey(selectedDate),
       workoutCount,
       workoutsThisMonth,
       currentStreakDays: calculateCurrentStreak(activityWorkouts, now),
@@ -317,7 +328,7 @@ export class DashboardService {
           }
         : null,
       recentWorkouts: recentWorkouts.map(summarizeWorkout),
-      todayWorkout: serializeTodayWorkout(todayWorkout, metadataByTemplateId),
+      selectedWorkout: serializeTodayWorkout(selectedWorkout, metadataByTemplateId),
       muscleDistributionPerWeek: buildWeeklyMuscleDistributionSeries(
         analyticsWorkouts,
         weeklyStart,
@@ -325,6 +336,24 @@ export class DashboardService {
         metadataByTemplateId,
       ),
       trainingDays: buildTrainingDays(activityWorkouts, activityStart, 35),
+    };
+  }
+
+  async getSelectedWorkout(selectedDate: Date) {
+    const dayStart = startOfDay(selectedDate);
+    const dayEnd = addDays(dayStart, 1);
+    const selectedDateWorkouts = await this.workouts.findBetween(dayStart, dayEnd);
+    const selectedWorkout = selectedDateWorkouts[0];
+    const metadata = await this.templateMetadata.findByTemplateIds(
+      selectedWorkout
+        ? selectedWorkout.exercises.map((exercise) => exercise.hevyExerciseTemplateId).filter((id) => id !== "unknown")
+        : [],
+    );
+    const metadataByTemplateId = new Map(metadata.map((row) => [row.hevyExerciseTemplateId, row]));
+
+    return {
+      selectedDate: dateKey(dayStart),
+      selectedWorkout: serializeTodayWorkout(selectedWorkout, metadataByTemplateId),
     };
   }
 }

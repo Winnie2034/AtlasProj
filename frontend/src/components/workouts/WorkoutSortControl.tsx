@@ -3,7 +3,8 @@ export type SortValue = "newest" | "oldest" | "title";
 export function WorkoutSortControl({ value, onChange }: { value: SortValue; onChange: (value: SortValue) => void }) {
   return (
     <select
-      className="focus-ring rounded-md border border-line bg-white px-3 py-2"
+      aria-label="Sort"
+      className="focus-ring h-10 w-full rounded-md border border-line bg-paper py-2 pl-9 pr-3 text-sm text-slate-700"
       onChange={(event) => onChange(event.target.value as SortValue)}
       value={value}
     >

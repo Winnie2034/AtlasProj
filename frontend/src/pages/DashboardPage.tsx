@@ -9,6 +9,14 @@ import { SyncButton } from "../components/settings/SyncButton";
 import { useDashboard } from "../hooks/useDashboard";
 import { relativeTime } from "../utils/format";
 
+const todayInputValue = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 export function DashboardPage() {
   const dashboard = useDashboard();
 
@@ -50,8 +58,10 @@ export function DashboardPage() {
       </div>
       <TodayWorkoutCard
         currentStreakDays={data.currentStreakDays}
+        initialSelectedDate={data.selectedDate}
+        initialWorkout={data.selectedWorkout}
         lastWorkout={data.recentWorkouts[0]}
-        workout={data.todayWorkout}
+        maxDate={todayInputValue()}
       />
     </div>
   );

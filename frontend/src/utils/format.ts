@@ -8,6 +8,14 @@ export function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
+export function formatDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${value}T00:00:00`));
+}
+
 export function relativeTime(value: string | null) {
   if (!value) return "Not completed";
   const diffMs = new Date(value).getTime() - Date.now();
