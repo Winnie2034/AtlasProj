@@ -13,6 +13,7 @@ Atlas is a single-user workout data platform that syncs Hevy workout data into P
   - current training streak
   - last sync status
   - sets per muscle group per week
+  - weekly muscle distribution radar
   - recent workouts
   - calendar-style training days
 - Trigger sync from the UI. Sync results show as a temporary top-center toast instead of shifting the page layout.
@@ -114,4 +115,6 @@ git push -u origin main
 
 The Hevy integration is isolated behind `HevyClient` and validates responses with Zod. Before using real sync data, verify the live Swagger schema at `https://api.hevyapp.com/docs/` with your API access because Hevy may change response fields.
 
-Dashboard muscle-group analytics currently classify exercises from their synced exercise titles because Atlas does not store official muscle-group metadata from Hevy yet. Ambiguous exercises fall into `Other`; a future improvement could add an editable exercise-to-muscle-group mapping table.
+Dashboard muscle-group analytics currently classify exercises from their synced exercise titles because Atlas does not store official muscle-group metadata from Hevy yet. The weekly radar chart shows percentage distribution across Back, Chest, Shoulders, Arms, and Legs for the selected week, skipping Core and Other.
+
+The current title-based classifier is only a starting point. Some exercises can be misclassified when names contain overlapping terms, such as `lateral`, `Plates`, or `Rear Delt Reverse Fly`. A planned improvement is an editable exercise mapping system that uses Hevy exercise template IDs and weighted muscle contributions, so compound lifts can count toward primary and secondary muscles.

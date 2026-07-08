@@ -82,6 +82,7 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - `frontend/src/pages/DashboardPage.tsx` - dashboard analytics UI.
 - `frontend/src/components/dashboard/SetsByMuscleGroupChart.tsx` - weekly sets-by-muscle-group chart.
 - `frontend/src/components/dashboard/TrainingDaysHeatmap.tsx` - calendar-style training-day view.
+- `frontend/src/components/dashboard/WeeklyMuscleRadarChart.tsx` - full-width weekly radar chart for percentage muscle distribution.
 - `frontend/src/components/settings/SyncButton.tsx` - sync trigger and top-center result toast.
 - `frontend/src/pages/RoutinesPage.tsx` - read-only routines UI.
 - `frontend/src/components/routines/RoutineCard.tsx` - routine detail card UI.
@@ -133,10 +134,27 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - main chart shows sets per muscle group per week for the last 8 weeks.
   - recent workouts are compact and sit beside the weekly muscle-group chart.
   - training days display as a full-width calendar-style grid with week ranges, weekday labels, day numbers, set counts, and a volume legend.
+  - a full-width weekly radar chart was added at the bottom of the dashboard in `WeeklyMuscleRadarChart`.
+  - the radar chart uses the last 8 weeks from `setsByMuscleGroupPerWeek`, lets the user switch weeks, and displays percentage distribution for Back, Chest, Shoulders, Arms, and Legs only.
+  - Core and Other are intentionally skipped in the radar chart.
+  - the radar currently uses tracked set counts only; for each selected week it divides each included group by the total sets across Back, Chest, Shoulders, Arms, and Legs.
   - sync results appear as a temporary top-center toast instead of a card below the Sync button.
   - backend returns `workoutsThisMonth`, `currentStreakDays`, `setsByMuscleGroupPerWeek`, and `trainingDays` from `GET /api/dashboard`.
   - muscle group classification currently uses exercise-title patterns because the local database does not store official Hevy muscle-group metadata. Unknown or ambiguous exercises fall into `Other`.
+  - verified radar implementation with `npm.cmd run typecheck`, `npm.cmd run build`, and a local browser check against `http://localhost:5173/`.
   - Verified with `npm.cmd run typecheck`, `npm.cmd run build`, and a local browser/API smoke check against `http://localhost:5173/` and `http://localhost:4000/api/dashboard`.
+- Current pause point for muscle distribution work:
+  - Development is paused after adding the bottom weekly radar chart.
+  - No database-backed exercise-to-muscle mapping has been added yet.
+  - Hevy workout data currently provides exercise names/template IDs and sets, but Atlas is not storing official primary/secondary muscle metadata from Hevy.
+  - The current classifier mislabels some shoulder-looking exercises because simple regex rules collide with substrings:
+    - `Shoulder Press (Machine Plates)` can be caught as Back because `Plates` contains `lat`.
+    - `Standing lateral Raise Machine` can be caught as Back because `lateral` contains `lat`.
+    - `Rear Delt Reverse Fly (Machine)` can be caught as Chest because `fly` matches the chest rule before shoulder terms.
+  - The preferred next step is not just tighter regex. Add an exercise contribution model that maps each Hevy exercise template ID to weighted muscle contributions, for example Bench Press = Chest 70%, Arms 20%, Shoulders 10%.
+  - Use manual mappings first, then fall back to a safer automatic classifier for unmapped exercises.
+  - The user is open to classifying exercises from Hevy routines so Atlas can seed reliable mappings from recurring exercises.
+  - If continuing immediately, start by designing a persistent mapping table and a small Settings UI for reviewing unique exercises and assigning percentage contributions.
 
 ## Git Workflow
 
@@ -181,6 +199,8 @@ scripts/dev-local.ps1
 backend/src/services/hevy/hevy.types.ts
 backend/src/services/sync.service.ts
 backend/src/services/routines.service.ts
+backend/src/services/dashboard.service.ts
+frontend/src/components/dashboard/WeeklyMuscleRadarChart.tsx
 ```
 
 Then inspect the current task-specific files before editing.

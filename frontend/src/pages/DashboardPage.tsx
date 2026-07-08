@@ -5,6 +5,7 @@ import { RecentWorkoutsList } from "../components/dashboard/RecentWorkoutsList";
 import { SetsByMuscleGroupChart } from "../components/dashboard/SetsByMuscleGroupChart";
 import { StatCard } from "../components/dashboard/StatCard";
 import { TrainingDaysHeatmap } from "../components/dashboard/TrainingDaysHeatmap";
+import { WeeklyMuscleRadarChart } from "../components/dashboard/WeeklyMuscleRadarChart";
 import { SyncButton } from "../components/settings/SyncButton";
 import { useDashboard } from "../hooks/useDashboard";
 import { relativeTime } from "../utils/format";
@@ -49,6 +50,7 @@ export function DashboardPage() {
         <RecentWorkoutsList workouts={data.recentWorkouts} />
       </div>
       <TrainingDaysHeatmap days={data.trainingDays} />
+      <WeeklyMuscleRadarChart weeks={data.setsByMuscleGroupPerWeek} />
     </div>
   );
 }
