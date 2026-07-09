@@ -77,6 +77,8 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - `backend/src/services/hevy/hevy.types.ts` - Hevy response validation schemas.
 - `backend/src/repositories/exerciseTemplateMetadata.repository.ts` - local cache access for Hevy exercise template muscle metadata.
 - `backend/src/services/exerciseTemplateMetadata.service.ts` - fetches and stores missing Hevy template metadata without blocking sync/routines on failure.
+- `backend/src/services/muscleGroups.ts` - shared Atlas muscle-group mapping, fallback title classification, and weighted set-count aggregation used by Dashboard and Workouts.
+- `backend/src/services/workoutMetrics.ts` - shared backend top-lift and set-highlight helpers used by Dashboard selected-workout summaries and Workouts detail previews.
 - `backend/src/services/sync.service.ts` - sync orchestration.
 - `backend/src/services/dashboard.service.ts` - dashboard summary and analytics aggregation.
 - `backend/src/services/workouts.service.ts` - workout list/detail serialization, filters, summary chips, and workout-detail muscle focus.
@@ -146,11 +148,13 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - old table/search/pagination components were deleted after the split-view explorer replaced them.
   - `/api/workouts` summaries now include `durationMinutes` and `muscleGroups`.
   - `/api/workouts/:id` detail responses now include `muscleFocus`.
+  - `/api/workouts/:id` detail responses now include `topLifts`, using the same backend top-lift helper as the dashboard selected-workout card.
   - `/api/workouts` supports `startDate`, `endDate`, and `muscleGroup` query filters in addition to search/sort/pagination.
   - muscle tags and filters use cached Hevy exercise template metadata when available, with title-pattern fallback only when metadata is missing.
   - summary chips use the dashboard-style weighted muscle model so primary muscles outrank secondary muscles.
   - workout detail `muscleFocus` uses the same dashboard-style weighted metadata model: primary muscles receive 70% of each set, secondary muscles split 30%, exercises without secondary muscles count 100% toward primary, and missing metadata falls back to title classification.
   - dashboard and Workouts preview muscle-focus percentages share `frontend/src/utils/muscleFocus.ts`; percentages are not stored in PostgreSQL.
+  - Dashboard and Workouts backend muscle-focus logic share `backend/src/services/muscleGroups.ts`, so summary chips, selected-workout focus, workout-detail focus, and weekly radar all use the same weighted set-count calculation.
   - full workout detail exercise cards use a header plus compact set pills instead of the older table-first layout.
   - latest Workouts verification included typecheck, build, an API detail smoke check confirming `muscleFocus`, and a 1920x1080 browser check that Workout History aligns with the Coach Card bottom.
 - Dashboard was expanded from a basic workout summary into an analytics page:
@@ -171,6 +175,7 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - `muscleDistributionPerWeek` and `selectedWorkout.muscleFocus` use cached Hevy template metadata and fall back to the title classifier only when metadata is missing.
   - `TodayWorkoutCard` owns its selected date with local React state and calls `useSelectedWorkout` itself, so changing the date updates only that card instead of making the whole dashboard re-render through parent state.
   - dashboard and Workouts preview muscle-focus percentages share `frontend/src/utils/muscleFocus.ts`; percentages are not stored in PostgreSQL.
+  - Dashboard selected-workout top lifts and Workouts detail top lifts share `backend/src/services/workoutMetrics.ts`.
   - verified radar implementation with `npm.cmd run typecheck`, `npm.cmd run build`, and a local browser check against `http://localhost:5173/`.
   - Verified with `npm.cmd run typecheck`, `npm.cmd run build`, and a local browser/API smoke check against `http://localhost:5173/` and `http://localhost:4000/api/dashboard`.
 - Exercise template metadata cache:

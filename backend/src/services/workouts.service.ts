@@ -1,51 +1,44 @@
 import { NotFoundError, ValidationError } from "../utils/AppError.js";
 import { ExerciseTemplateMetadataRepository } from "../repositories/exerciseTemplateMetadata.repository.js";
 import { WorkoutRepository } from "../repositories/workout.repository.js";
-import { metadataMuscleGroups, metadataMuscleWeights } from "./muscleGroups.js";
+import { ATLAS_MUSCLE_GROUPS, metadataMuscleGroups, weightedSetCountsForExercises } from "./muscleGroups.js";
+import { buildTopLifts } from "./workoutMetrics.js";
 
 type WorkoutWithExercises = Awaited<ReturnType<WorkoutRepository["findRecent"]>>[number];
 type TemplateMetadata = Awaited<ReturnType<ExerciseTemplateMetadataRepository["findByTemplateIds"]>>[number];
 
-const serializeSummary = (workout: WorkoutWithExercises, metadataByTemplateId: Map<string, TemplateMetadata>) => ({
-  id: workout.id,
-  title: workout.title,
-  startTime: workout.startTime.toISOString(),
-  durationMinutes: Math.max(1, Math.round((workout.endTime.getTime() - workout.startTime.getTime()) / 60000)),
-  exerciseCount: workout.exercises.length,
-  setCount: workout.exercises.reduce((count, exercise) => count + exercise.sets.length, 0),
-  muscleGroups: Array.from(
-    workout.exercises
-      .reduce((counts, exercise) => {
-        for (const [group, weight] of metadataMuscleWeights(metadataByTemplateId.get(exercise.hevyExerciseTemplateId), exercise.title)) {
-          if (group !== "Other") {
-            counts.set(group, (counts.get(group) ?? 0) + exercise.sets.length * weight);
-          }
-        }
-        return counts;
-      }, new Map<string, number>())
-      .entries(),
-  )
-    .sort((a, b) => b[1] - a[1])
-    .map(([group]) => group)
-    .slice(0, 3),
-});
+const serializeSummary = (workout: WorkoutWithExercises, metadataByTemplateId: Map<string, TemplateMetadata>) => {
+  const muscleCounts = weightedSetCountsForExercises(workout.exercises, metadataByTemplateId);
 
-const buildMuscleFocus = (workout: WorkoutWithExercises, metadataByTemplateId: Map<string, TemplateMetadata>) =>
-  Array.from(
-    workout.exercises
-      .reduce((counts, exercise) => {
-        for (const [group, weight] of metadataMuscleWeights(metadataByTemplateId.get(exercise.hevyExerciseTemplateId), exercise.title)) {
-          if (group !== "Other") {
-            counts.set(group, (counts.get(group) ?? 0) + exercise.sets.length * weight);
-          }
-        }
-        return counts;
-      }, new Map<string, number>())
-      .entries(),
-  )
-    .map(([muscleGroup, setCount]) => ({ muscleGroup, setCount: Number(setCount.toFixed(1)) }))
+  return {
+    id: workout.id,
+    title: workout.title,
+    startTime: workout.startTime.toISOString(),
+    durationMinutes: Math.max(1, Math.round((workout.endTime.getTime() - workout.startTime.getTime()) / 60000)),
+    exerciseCount: workout.exercises.length,
+    setCount: workout.exercises.reduce((count, exercise) => count + exercise.sets.length, 0),
+    muscleGroups: ATLAS_MUSCLE_GROUPS.map((group) => ({
+      group,
+      setCount: muscleCounts[group],
+    }))
+      .filter((group) => group.group !== "Other" && group.setCount > 0)
+      .sort((a, b) => b.setCount - a.setCount)
+      .map(({ group }) => group)
+      .slice(0, 3),
+  };
+};
+
+const buildMuscleFocus = (workout: WorkoutWithExercises, metadataByTemplateId: Map<string, TemplateMetadata>) => {
+  const muscleCounts = weightedSetCountsForExercises(workout.exercises, metadataByTemplateId);
+
+  return ATLAS_MUSCLE_GROUPS.map((muscleGroup) => ({
+    muscleGroup,
+    setCount: Number(muscleCounts[muscleGroup].toFixed(1)),
+  }))
+    .filter((group) => group.muscleGroup !== "Other" && group.setCount > 0)
     .sort((a, b) => b.setCount - a.setCount)
     .slice(0, 4);
+};
 
 const metadataMapForWorkouts = async (workouts: WorkoutWithExercises[], metadata: ExerciseTemplateMetadataRepository) => {
   const templateIds = Array.from(
@@ -115,6 +108,7 @@ export class WorkoutsService {
       description: workout.description,
       endTime: workout.endTime.toISOString(),
       muscleFocus: buildMuscleFocus(workout, metadataByTemplateId),
+      topLifts: buildTopLifts(workout.exercises),
       exercises: workout.exercises.map((exercise) => ({
         id: exercise.id,
         title: exercise.title,

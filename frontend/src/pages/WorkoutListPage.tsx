@@ -77,16 +77,6 @@ const setScore = (set: SetDetail) => {
   return weight * reps || reps || distance || duration;
 };
 
-const topLifts = (workout: WorkoutDetail) =>
-  workout.exercises
-    .map((exercise) => {
-      const bestSet = exercise.sets.reduce((best, set) => (setScore(set) > setScore(best) ? set : best), exercise.sets[0]);
-      return bestSet ? { exerciseTitle: exercise.title, highlight: setHighlight(bestSet), score: setScore(bestSet) } : null;
-    })
-    .filter((lift): lift is { exerciseTitle: string; highlight: string; score: number } => lift != null)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3);
-
 export function WorkoutListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
@@ -393,7 +383,7 @@ function WorkoutPreview({
   const focus = toMuscleFocusPercentages(workout.muscleFocus ?? [])
     .sort((a, b) => b.percent - a.percent)
     .slice(0, 5);
-  const lifts = topLifts(workout);
+  const lifts = workout.topLifts;
 
   return (
     <section className="self-start overflow-hidden rounded-md border border-line bg-white shadow-panel" ref={previewRef}>
@@ -495,7 +485,7 @@ function MuscleFocusCoach({ focus }: { focus: { muscleGroup: string; percent: nu
   );
 }
 
-function TopLiftsCoach({ lifts }: { lifts: { exerciseTitle: string; highlight: string; score: number }[] }) {
+function TopLiftsCoach({ lifts }: { lifts: { exerciseTitle: string; highlight: string }[] }) {
   return (
     <section className="rounded-md border border-line p-4">
       <PanelHeading icon={Trophy} label="Top Lifts" />
@@ -515,7 +505,7 @@ function TopLiftRow({
   lift,
 }: {
   index: number;
-  lift: { exerciseTitle: string; highlight: string; score: number };
+  lift: { exerciseTitle: string; highlight: string };
 }) {
   const rankStyles = [
     "border-amber-200 bg-amber-50 text-amber-700",

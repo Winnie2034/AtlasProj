@@ -90,6 +90,10 @@ export interface WorkoutDetail extends WorkoutSummary {
     muscleGroup: string;
     setCount: number;
   }[];
+  topLifts: {
+    exerciseTitle: string;
+    highlight: string;
+  }[];
   exercises: ExerciseDetail[];
 }
 

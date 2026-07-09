@@ -3,6 +3,13 @@ import type { ExerciseTemplateMetadata } from "@prisma/client";
 export const ATLAS_MUSCLE_GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Other"] as const;
 
 export type AtlasMuscleGroup = (typeof ATLAS_MUSCLE_GROUPS)[number];
+export type AtlasMuscleCounts = Record<AtlasMuscleGroup, number>;
+
+type ExerciseForMuscleCounts = {
+  hevyExerciseTemplateId: string;
+  title: string;
+  sets: unknown[];
+};
 
 export const hevyMuscleToAtlasGroup = (muscle: string): AtlasMuscleGroup => {
   const normalized = muscle.toLowerCase();
@@ -64,3 +71,20 @@ export const metadataMuscleWeights = (
     ]),
   ];
 };
+
+export const emptyAtlasMuscleCounts = () =>
+  Object.fromEntries(ATLAS_MUSCLE_GROUPS.map((group) => [group, 0])) as AtlasMuscleCounts;
+
+export const weightedSetCountsForExercises = (
+  exercises: ExerciseForMuscleCounts[],
+  metadataByTemplateId: Map<string, ExerciseTemplateMetadata>,
+) =>
+  exercises.reduce((counts, exercise) => {
+    for (const [group, weight] of metadataMuscleWeights(
+      metadataByTemplateId.get(exercise.hevyExerciseTemplateId),
+      exercise.title,
+    )) {
+      counts[group] += exercise.sets.length * weight;
+    }
+    return counts;
+  }, emptyAtlasMuscleCounts());
