@@ -79,13 +79,16 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - `backend/src/services/exerciseTemplateMetadata.service.ts` - fetches and stores missing Hevy template metadata without blocking sync/routines on failure.
 - `backend/src/services/sync.service.ts` - sync orchestration.
 - `backend/src/services/dashboard.service.ts` - dashboard summary and analytics aggregation.
+- `backend/src/services/workouts.service.ts` - workout list/detail serialization, filters, summary chips, and workout-detail muscle focus.
 - `backend/src/services/routines.service.ts` - read-only Hevy routines loading/serialization.
 - `backend/src/routes/routines.routes.ts` - `/api/routines` backend route.
 - `frontend/src/pages/DashboardPage.tsx` - dashboard analytics UI.
-- `frontend/src/pages/WorkoutListPage.tsx` - split-view Workouts explorer with search, date range, muscle filters, grouped workout history, and selected-workout preview.
+- `frontend/src/pages/WorkoutListPage.tsx` - split-view Workouts explorer with search, date range, muscle filters, grouped workout history, measured panel alignment, and Coach Card selected-workout preview.
+- `frontend/src/components/workouts/ExerciseCard.tsx` - full workout detail exercise card with header metrics and compact set pills.
 - `frontend/src/components/dashboard/CurrentWeekHeatmap.tsx` - compact current-week training heatmap shown beside the radar.
 - `frontend/src/components/dashboard/TodayWorkoutCard.tsx` - bottom dashboard panel with a date picker, selected-date workout summary, and no-workout empty state.
 - `frontend/src/components/dashboard/WeeklyMuscleRadarChart.tsx` - weekly radar chart for percentage muscle distribution.
+- `frontend/src/components/dashboard/StatCard.tsx` - reusable dashboard stat card with Lucide icon support.
 - `frontend/src/components/settings/SyncButton.tsx` - sync trigger and top-center result toast.
 - `frontend/src/pages/RoutinesPage.tsx` - read-only routines UI.
 - `frontend/src/components/routines/RoutineCard.tsx` - routine detail card UI.
@@ -136,19 +139,26 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - Workouts page was redesigned from a table into a split-view explorer:
   - left pane groups workout summaries by date and shows duration, sets, exercise count, and muscle chips.
   - right pane previews the selected workout with metrics, muscle focus, top lifts, exercise preview, and a Details link.
+  - preview metrics and section headings use existing `lucide-react` icons for easier scanning.
+  - selected workout preview is now a Coach Card with compact header metrics, vertical top-lift rows, vertically stacked muscle-focus percentage pills, and numbered exercise recap rows.
+  - at wide desktop sizes, the Coach Card reports its natural height with `ResizeObserver` so Workout History lines up with the bottom of the preview without forcing extra height inside the Coach Card.
   - bottom pagination controls were removed; the page currently requests the first page of the filtered workout list.
   - old table/search/pagination components were deleted after the split-view explorer replaced them.
   - `/api/workouts` summaries now include `durationMinutes` and `muscleGroups`.
+  - `/api/workouts/:id` detail responses now include `muscleFocus`.
   - `/api/workouts` supports `startDate`, `endDate`, and `muscleGroup` query filters in addition to search/sort/pagination.
   - muscle tags and filters use cached Hevy exercise template metadata when available, with title-pattern fallback only when metadata is missing.
   - summary chips use the dashboard-style weighted muscle model so primary muscles outrank secondary muscles.
-  - exercise preview shows per-set comma-separated reps and weights so each rep value lines up with its corresponding weight value.
-  - workout preview muscle focus displays percentages calculated on the frontend from live set counts.
+  - workout detail `muscleFocus` uses the same dashboard-style weighted metadata model: primary muscles receive 70% of each set, secondary muscles split 30%, exercises without secondary muscles count 100% toward primary, and missing metadata falls back to title classification.
+  - dashboard and Workouts preview muscle-focus percentages share `frontend/src/utils/muscleFocus.ts`; percentages are not stored in PostgreSQL.
+  - full workout detail exercise cards use a header plus compact set pills instead of the older table-first layout.
+  - latest Workouts verification included typecheck, build, an API detail smoke check confirming `muscleFocus`, and a 1920x1080 browser check that Workout History aligns with the Coach Card bottom.
 - Dashboard was expanded from a basic workout summary into an analytics page:
   - top stat row shows total workouts, workouts this month, current streak, and last sync.
   - main chart shows weekly muscle distribution for the last 8 weeks.
   - a compact current-week heatmap sits beside the weekly muscle distribution radar.
   - bottom panel shows a date-filtered workout summary with duration, set volume, muscle focus, top lifts, and a no-workout empty state.
+  - stat cards, chart headers, selected workout metrics, and selected workout section headings use the existing Lucide icon set.
   - the weekly radar chart is the main dashboard chart in the top analytics row.
   - the radar chart uses the last 8 weeks from `muscleDistributionPerWeek`, lets the user switch weeks, and displays percentage distribution for Back, Chest, Shoulders, Arms, and Legs only.
   - Core and Other are intentionally skipped in the radar chart.

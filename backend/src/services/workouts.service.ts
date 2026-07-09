@@ -30,6 +30,23 @@ const serializeSummary = (workout: WorkoutWithExercises, metadataByTemplateId: M
     .slice(0, 3),
 });
 
+const buildMuscleFocus = (workout: WorkoutWithExercises, metadataByTemplateId: Map<string, TemplateMetadata>) =>
+  Array.from(
+    workout.exercises
+      .reduce((counts, exercise) => {
+        for (const [group, weight] of metadataMuscleWeights(metadataByTemplateId.get(exercise.hevyExerciseTemplateId), exercise.title)) {
+          if (group !== "Other") {
+            counts.set(group, (counts.get(group) ?? 0) + exercise.sets.length * weight);
+          }
+        }
+        return counts;
+      }, new Map<string, number>())
+      .entries(),
+  )
+    .map(([muscleGroup, setCount]) => ({ muscleGroup, setCount: Number(setCount.toFixed(1)) }))
+    .sort((a, b) => b.setCount - a.setCount)
+    .slice(0, 4);
+
 const metadataMapForWorkouts = async (workouts: WorkoutWithExercises[], metadata: ExerciseTemplateMetadataRepository) => {
   const templateIds = Array.from(
     new Set(
@@ -97,6 +114,7 @@ export class WorkoutsService {
       ...serializeSummary(workout, metadataByTemplateId),
       description: workout.description,
       endTime: workout.endTime.toISOString(),
+      muscleFocus: buildMuscleFocus(workout, metadataByTemplateId),
       exercises: workout.exercises.map((exercise) => ({
         id: exercise.id,
         title: exercise.title,

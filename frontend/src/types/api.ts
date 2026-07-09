@@ -86,6 +86,10 @@ export interface ExerciseDetail {
 export interface WorkoutDetail extends WorkoutSummary {
   description: string | null;
   endTime: string;
+  muscleFocus: {
+    muscleGroup: string;
+    setCount: number;
+  }[];
   exercises: ExerciseDetail[];
 }
 

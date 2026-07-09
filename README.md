@@ -5,7 +5,7 @@ Atlas is a single-user workout data platform that syncs Hevy workout data into P
 ## Current Features
 
 - Sync Hevy workout history into local PostgreSQL.
-- Browse synced workouts in a split-view explorer with search, date range, muscle filters, and workout preview.
+- Browse synced workouts in a split-view explorer with search, date range, muscle filters, grouped workout history, and a Coach Card preview.
 - Browse read-only Hevy routines.
 - View dashboard analytics:
   - total workouts
@@ -15,6 +15,7 @@ Atlas is a single-user workout data platform that syncs Hevy workout data into P
   - weekly muscle distribution radar
   - current-week training heatmap
   - date-filtered workout summary with empty state for days without synced workouts
+- Use Lucide icons throughout dashboard and workout previews to make stats, filters, and sections easier to scan.
 - Trigger sync from the UI. Sync results show as a temporary top-center toast instead of shifting the page layout.
 
 ## Structure
@@ -118,7 +119,11 @@ Dashboard muscle-group analytics use cached Hevy exercise template metadata for 
 
 Atlas stores Hevy template metadata locally in `exercise_template_metadata`, so the dashboard does not call Hevy while rendering. During workout sync and routine loading, Atlas fetches only missing exercise template metadata and reuses cached rows afterward. The radar and today's workout muscle-focus model give the primary muscle group 70% of each set and split the remaining 30% across secondary muscles; exercises without secondary muscles count 100% toward their primary group.
 
-Workout muscle focus percentages are calculated in the frontend at render time with a shared helper, not stored in the database. The Workouts page currently shows the first page of the filtered workout list in its split-view explorer and intentionally does not render bottom pagination controls.
+Dashboard and Workouts muscle focus now use the same weighted metadata model. Workout detail responses include `muscleFocus` from the backend, and the frontend converts those weighted set counts into display percentages with a shared helper; percentages are not stored in the database.
+
+The Workouts page currently shows the first page of the filtered workout list in its split-view explorer and intentionally does not render bottom pagination controls. Its Coach Card preview uses a compact header, vertical top-lift rows, a pill-style muscle focus section, and a numbered exercise recap; the workout history panel follows the Coach Card's natural height at wide desktop sizes.
+
+Dashboard and Workouts UI polish uses the existing `lucide-react` dependency. Icons are used for stat cards, workout preview metrics, section headings, filters, and workout history metadata; no additional icon package is required.
 
 A future improvement could add a Settings page for manual overrides, but the current implementation already uses Hevy's `primary_muscle_group` and `secondary_muscle_groups` fields when available.
 

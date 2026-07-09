@@ -12,7 +12,7 @@ import {
   Trophy,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { EmptyState } from "../components/common/EmptyState";
 import { ErrorState } from "../components/common/ErrorState";
@@ -77,19 +77,6 @@ const setScore = (set: SetDetail) => {
   return weight * reps || reps || distance || duration;
 };
 
-const muscleFocus = (workout: WorkoutDetail) => {
-  const counts = new Map<string, number>();
-  for (const exercise of workout.exercises) {
-    for (const group of exercise.muscleGroups) {
-      counts.set(group, (counts.get(group) ?? 0) + exercise.sets.length);
-    }
-  }
-  const focusCounts = Array.from(counts.entries()).map(([muscleGroup, setCount]) => ({ muscleGroup, setCount }));
-  return toMuscleFocusPercentages(focusCounts)
-    .sort((a, b) => b.percent - a.percent)
-    .slice(0, 5);
-};
-
 const topLifts = (workout: WorkoutDetail) =>
   workout.exercises
     .map((exercise) => {
@@ -141,6 +128,7 @@ export function WorkoutListPage() {
   const workoutItems = workouts.data?.data ?? [];
   const activeWorkoutId = selectedWorkoutId ?? workoutItems[0]?.id ?? "";
   const selectedWorkout = useWorkoutDetail(activeWorkoutId);
+  const [coachCardHeight, setCoachCardHeight] = useState<number | null>(null);
 
   useEffect(() => {
     if (!workoutItems.length) {
@@ -228,9 +216,14 @@ export function WorkoutListPage() {
         <EmptyState title="No workouts found" detail={params.search ? "Try a different search or filter." : "Run a sync to import workouts."} />
       ) : null}
       {workouts.data && workoutItems.length > 0 ? (
-        <div className="grid gap-5 xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)]">
-          <WorkoutExplorerList activeWorkoutId={activeWorkoutId} onSelect={setSelectedWorkoutId} workouts={workoutItems} />
-          <WorkoutPreview query={selectedWorkout} />
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(300px,360px)_minmax(0,1fr)]">
+          <WorkoutExplorerList
+            activeWorkoutId={activeWorkoutId}
+            onSelect={setSelectedWorkoutId}
+            panelHeight={coachCardHeight}
+            workouts={workoutItems}
+          />
+          <WorkoutPreview onHeightChange={setCoachCardHeight} query={selectedWorkout} />
         </div>
       ) : null}
     </div>
@@ -272,10 +265,12 @@ function FilterSelect({
 function WorkoutExplorerList({
   workouts,
   activeWorkoutId,
+  panelHeight,
   onSelect,
 }: {
   workouts: WorkoutSummary[];
   activeWorkoutId: string;
+  panelHeight: number | null;
   onSelect: (id: string) => void;
 }) {
   const groups = workouts.reduce<Record<string, WorkoutSummary[]>>((items, workout) => {
@@ -285,12 +280,15 @@ function WorkoutExplorerList({
   }, {});
 
   return (
-    <section className="rounded-md border border-line bg-white shadow-panel">
+    <section
+      className="self-start rounded-md border border-line bg-white shadow-panel lg:flex lg:h-[var(--history-panel-height)] lg:flex-col"
+      style={panelHeight ? ({ "--history-panel-height": `${panelHeight}px` } as React.CSSProperties) : undefined}
+    >
       <div className="border-b border-line px-4 py-3">
         <h3 className="text-sm font-semibold text-ink">Workout history</h3>
         <p className="mt-1 text-xs text-slate-500">Select a session to preview it.</p>
       </div>
-      <div className="max-h-[720px] overflow-y-auto p-3">
+      <div className="max-h-[720px] overflow-y-auto p-3 lg:max-h-none lg:flex-1">
         {Object.entries(groups).map(([label, group]) => (
           <div className="mb-4 last:mb-0" key={label}>
             <div className="mb-2 flex items-center justify-between px-1">
@@ -354,107 +352,89 @@ function MuscleChips({ groups }: { groups: string[] }) {
   );
 }
 
-function WorkoutPreview({ query }: { query: ReturnType<typeof useWorkoutDetail> }) {
+function WorkoutPreview({
+  query,
+  onHeightChange,
+}: {
+  query: ReturnType<typeof useWorkoutDetail>;
+  onHeightChange: (height: number | null) => void;
+}) {
+  const previewRef = useRef<HTMLElement | null>(null);
+  const measuredWorkoutId = query.data?.data?.id;
+
+  useLayoutEffect(() => {
+    const element = previewRef.current;
+    if (!element) {
+      onHeightChange(null);
+      return;
+    }
+
+    const updateHeight = () => {
+      onHeightChange(Math.ceil(element.getBoundingClientRect().height));
+    };
+
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(element);
+    window.addEventListener("resize", updateHeight);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateHeight);
+      onHeightChange(null);
+    };
+  }, [measuredWorkoutId, onHeightChange]);
+
   if (query.isLoading) return <LoadingState label="Loading workout preview" />;
   if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
   if (!query.data?.data) return <EmptyState title="Select a workout" detail="Choose a session from the list to preview it." />;
 
   const workout = query.data.data;
-  const focus = muscleFocus(workout);
+  const focus = toMuscleFocusPercentages(workout.muscleFocus ?? [])
+    .sort((a, b) => b.percent - a.percent)
+    .slice(0, 5);
   const lifts = topLifts(workout);
 
   return (
-    <section className="rounded-md border border-line bg-white shadow-panel">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-river text-white">
-            <Dumbbell size={19} />
-          </div>
-          <div>
-            <p className="text-sm text-slate-500">Selected workout</p>
-            <h3 className="text-2xl font-semibold text-ink">{workout.title}</h3>
+    <section className="self-start overflow-hidden rounded-md border border-line bg-white shadow-panel" ref={previewRef}>
+      <div className="border-b border-line bg-paper px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-river">Coach card</p>
+            <h3 className="mt-1 text-2xl font-semibold leading-tight text-ink">{workout.title}</h3>
             <p className="mt-1 text-sm text-slate-500">
               {dateGroupLabel(workout.startTime)} - {workout.durationMinutes} min
             </p>
           </div>
+          <Link
+            className="focus-ring inline-flex items-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-paper"
+            to={`/workouts/${workout.id}`}
+          >
+            Details
+            <ArrowRight size={16} />
+          </Link>
         </div>
-        <Link
-          className="focus-ring inline-flex items-center gap-2 rounded-md border border-line px-3 py-2 text-sm font-medium text-slate-700 hover:bg-paper"
-          to={`/workouts/${workout.id}`}
-        >
-          Details
-          <ArrowRight size={16} />
-        </Link>
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <CoachMetric icon={Clock} label="Duration" value={`${workout.durationMinutes} min`} />
+          <CoachMetric icon={Layers3} label="Training volume" value={`${workout.setCount} sets`} />
+          <CoachMetric icon={ListChecks} label="Movements" value={workout.exerciseCount} />
+        </div>
       </div>
 
       <div className="grid gap-4 p-5">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <PreviewMetric icon={Clock} label="Duration" value={`${workout.durationMinutes} min`} />
-          <PreviewMetric icon={Layers3} label="Volume" value={`${workout.setCount} sets`} />
-          <PreviewMetric icon={ListChecks} label="Exercises" value={workout.exerciseCount} />
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-[minmax(240px,0.9fr)_minmax(320px,1.1fr)]">
-          <section className="rounded-md border border-line p-4">
-            <PanelHeading icon={Target} label="Muscle Focus" />
-            <div className="mt-3 grid gap-2">
-              {focus.length ? (
-                focus.map((group) => (
-                  <div className="grid grid-cols-[88px_minmax(0,1fr)_44px] items-center gap-3 rounded-md bg-paper px-3 py-2" key={group.muscleGroup}>
-                    <span className="truncate text-sm text-slate-600">{group.muscleGroup}</span>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-white">
-                      <div
-                        className={`h-full rounded-full ${group.muscleGroup === "Legs" ? "bg-emerald-600" : group.muscleGroup === "Back" ? "bg-indigo-600" : "bg-teal-600"}`}
-                        style={{ width: `${Math.max(group.percent, 8)}%` }}
-                      />
-                    </div>
-                    <span className="text-right text-sm font-semibold text-ink">{group.percent}%</span>
-                  </div>
-                ))
-              ) : (
-                <p className="rounded-md bg-paper px-3 py-2 text-sm text-slate-500">No muscle focus available yet.</p>
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-md border border-line p-4">
-            <PanelHeading icon={Trophy} label="Top Lifts" />
-            <div className="mt-3 divide-y divide-line rounded-md border border-line">
-              {lifts.length ? (
-                <>
-                  <div className="grid grid-cols-[minmax(0,1fr)_120px] gap-3 px-3 py-2 text-xs uppercase text-slate-400">
-                    <span>Exercise</span>
-                    <span className="text-right">Best set</span>
-                  </div>
-                  {lifts.map((lift) => (
-                    <div className="grid min-h-12 grid-cols-[minmax(0,1fr)_120px] items-center gap-3 px-3 py-2.5" key={lift.exerciseTitle}>
-                      <span className="min-w-0 text-sm font-medium leading-snug text-slate-700">{lift.exerciseTitle}</span>
-                      <span className="text-right text-sm font-semibold text-ink">{lift.highlight}</span>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <p className="px-3 py-2.5 text-sm text-slate-500">No top lifts available yet.</p>
-              )}
-            </div>
-          </section>
+        <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.75fr)]">
+          <MuscleFocusCoach focus={focus} />
+          <TopLiftsCoach lifts={lifts} />
         </div>
 
         <section className="rounded-md border border-line">
-          <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <PanelHeading icon={ListChecks} label="Exercise preview" />
-            <span className="text-xs text-slate-400">{workout.exercises.length} exercises</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
+            <PanelHeading icon={ListChecks} label="Exercise Preview" />
+            <span className="text-xs font-medium text-slate-400">{workout.exercises.length} exercises</span>
           </div>
-          <div className="hidden grid-cols-[minmax(0,1fr)_56px_minmax(96px,0.8fr)_minmax(140px,1fr)_92px] gap-3 border-b border-line px-4 py-2 text-xs uppercase text-slate-400 md:grid">
-            <span>Exercise</span>
-            <span className="text-right">Sets</span>
-            <span className="text-right">Reps</span>
-            <span className="text-right">Weights</span>
-            <span className="text-right">Volume</span>
-          </div>
-          <div className="divide-y divide-line">
-            {workout.exercises.slice(0, 6).map((exercise) => (
-              <ExercisePreviewRow exercise={exercise} key={exercise.id} />
+          <div className="grid gap-2 p-3">
+            {workout.exercises.slice(0, 6).map((exercise, index) => (
+              <ExercisePreviewRow exercise={exercise} index={index} key={exercise.id} />
             ))}
           </div>
         </section>
@@ -463,18 +443,108 @@ function WorkoutPreview({ query }: { query: ReturnType<typeof useWorkoutDetail> 
   );
 }
 
-function PreviewMetric({ label, value, icon: Icon }: { label: string; value: string | number; icon: LucideIcon }) {
+function CoachMetric({ label, value, icon: Icon }: { label: string; value: string | number; icon: LucideIcon }) {
   return (
-    <div className="flex items-center gap-3 rounded-md border border-line bg-paper px-3 py-2">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-river">
+    <div className="flex items-center gap-2 rounded-md border border-line bg-white px-3 py-2">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-river/10 text-river">
         <Icon size={16} />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs uppercase text-slate-400">{label}</p>
-        <p className="mt-1 truncate text-sm font-semibold text-ink">{value}</p>
-      </div>
+      </span>
+      <span className="min-w-0">
+        <span className="block text-xs uppercase text-slate-400">{label}</span>
+        <span className="mt-0.5 block truncate text-sm font-semibold text-ink">{value}</span>
+      </span>
     </div>
   );
+}
+
+function MuscleFocusCoach({ focus }: { focus: { muscleGroup: string; percent: number }[] }) {
+  return (
+    <section className="flex h-full flex-col rounded-md border border-line bg-white p-4">
+      <div className="flex items-start justify-between gap-3">
+        <PanelHeading icon={Target} label="Muscle Focus" />
+      </div>
+
+      {focus.length ? (
+        <div className="mt-4 flex flex-1 flex-col gap-2">
+          <div className="flex flex-1 flex-col gap-2">
+            {focus.map((group) => (
+              <div
+                className={`flex flex-1 items-center justify-between gap-3 rounded-full px-4 py-3 ${MUSCLE_COLORS[group.muscleGroup] ?? "bg-slate-100 text-slate-600"}`}
+                key={group.muscleGroup}
+              >
+                <span className="truncate text-sm font-semibold">{group.muscleGroup}</span>
+                <span className="text-xl font-semibold text-ink">{group.percent}%</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex h-3 overflow-hidden rounded-full bg-paper">
+            {focus.map((group) => (
+              <div
+                className={muscleBarColor(group.muscleGroup)}
+                key={group.muscleGroup}
+                style={{ width: `${Math.max(group.percent, 6)}%` }}
+                title={`${group.muscleGroup}: ${group.percent}%`}
+              />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="mt-3 flex flex-1 items-center rounded-md bg-paper px-3 py-2 text-sm text-slate-500">No muscle focus available yet.</p>
+      )}
+    </section>
+  );
+}
+
+function TopLiftsCoach({ lifts }: { lifts: { exerciseTitle: string; highlight: string; score: number }[] }) {
+  return (
+    <section className="rounded-md border border-line p-4">
+      <PanelHeading icon={Trophy} label="Top Lifts" />
+      <div className="mt-3 grid gap-2">
+        {lifts.length ? (
+          lifts.map((lift, index) => <TopLiftRow index={index} lift={lift} key={lift.exerciseTitle} />)
+        ) : (
+          <p className="rounded-md bg-paper px-3 py-2.5 text-sm text-slate-500">No top lifts available yet.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function TopLiftRow({
+  index,
+  lift,
+}: {
+  index: number;
+  lift: { exerciseTitle: string; highlight: string; score: number };
+}) {
+  const rankStyles = [
+    "border-amber-200 bg-amber-50 text-amber-700",
+    "border-slate-200 bg-slate-50 text-slate-600",
+    "border-orange-200 bg-orange-50 text-orange-700",
+  ];
+
+  return (
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md bg-paper px-3 py-2.5">
+      <span
+        className={`flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold ${rankStyles[index] ?? "border-line bg-white text-slate-600"}`}
+      >
+        {index + 1}
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold text-ink">{lift.exerciseTitle}</span>
+        <span className="mt-0.5 block text-sm font-medium text-river">{lift.highlight}</span>
+      </span>
+    </div>
+  );
+}
+
+function muscleBarColor(group: string) {
+  if (group === "Back") return "bg-indigo-500";
+  if (group === "Chest") return "bg-teal-500";
+  if (group === "Legs") return "bg-emerald-500";
+  if (group === "Shoulders") return "bg-amber-500";
+  if (group === "Arms") return "bg-rose-500";
+  return "bg-slate-400";
 }
 
 function PanelHeading({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
@@ -488,29 +558,58 @@ function PanelHeading({ icon: Icon, label }: { icon: LucideIcon; label: string }
   );
 }
 
-function ExercisePreviewRow({ exercise }: { exercise: ExerciseDetail }) {
-  const repsBySet = exercise.sets.map((set) => set.reps ?? "-").join(", ");
-  const weightsBySet = exercise.sets.map((set) => (set.weightKg == null ? "-" : String(set.weightKg))).join(", ");
+function bestSetForExercise(exercise: ExerciseDetail) {
+  return exercise.sets.reduce<SetDetail | null>((best, set) => {
+    if (!best) return set;
+    return setScore(set) > setScore(best) ? set : best;
+  }, null);
+}
+
+function ExercisePreviewRow({ exercise, index }: { exercise: ExerciseDetail; index: number }) {
   const totalVolume = exercise.sets.reduce((total, set) => total + (set.weightKg ?? 0) * (set.reps ?? 0), 0);
+  const bestSet = bestSetForExercise(exercise);
+  const primaryMuscle = exercise.muscleGroups[0];
+  const hiddenMuscleCount = Math.max(exercise.muscleGroups.length - 1, 0);
+
   return (
-    <div className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(0,1fr)_56px_minmax(96px,0.8fr)_minmax(140px,1fr)_92px] md:items-center">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-ink">{exercise.title}</p>
-        {exercise.notes ? <p className="mt-1 truncate text-xs text-slate-500">{exercise.notes}</p> : null}
+    <div className="rounded-md border border-line bg-white px-3 py-2.5">
+      <div className="grid gap-3 md:grid-cols-[auto_minmax(0,1fr)_minmax(220px,0.65fr)] md:items-center">
+        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-paper text-xs font-bold text-slate-500">{index + 1}</span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="min-w-0 text-sm font-semibold leading-snug text-ink">{exercise.title}</p>
+            {primaryMuscle ? (
+              <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${MUSCLE_COLORS[primaryMuscle] ?? "bg-paper text-slate-600"}`}>
+                {primaryMuscle}
+                {hiddenMuscleCount ? ` +${hiddenMuscleCount}` : ""}
+              </span>
+            ) : null}
+          </div>
+          {exercise.notes ? <p className="mt-1 line-clamp-1 text-xs text-slate-500">{exercise.notes}</p> : null}
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-right">
+          <GlanceMetric label="Sets" value={exercise.sets.length} />
+          <GlanceMetric label="Best" value={bestSet ? setHighlight(bestSet) : "-"} strong />
+          <GlanceMetric label="Volume" value={totalVolume ? `${Math.round(totalVolume)} kg` : "-"} />
+        </div>
       </div>
-      <MetricCell label="Sets" value={exercise.sets.length} />
-      <MetricCell label="Reps" value={repsBySet || "-"} />
-      <MetricCell label="Weights" value={weightsBySet || "-"} />
-      <MetricCell label="Volume" value={totalVolume ? `${Math.round(totalVolume)} kg` : "-"} strong />
+      <div className="mt-2.5 flex flex-wrap gap-1">
+        {exercise.sets.map((set) => (
+          <span className="inline-flex items-center rounded bg-paper px-2 py-1 text-xs text-slate-600" key={set.id}>
+            <span className="mr-1.5 font-semibold text-slate-400">S{set.index + 1}</span>
+            {setHighlight(set)}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
 
-function MetricCell({ label, value, strong = false }: { label: string; value: string | number; strong?: boolean }) {
+function GlanceMetric({ label, value, strong = false }: { label: string; value: string | number; strong?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-3 md:block md:text-right">
-      <span className="text-xs uppercase text-slate-400 md:hidden">{label}</span>
-      <span className={`text-sm ${strong ? "font-semibold text-ink" : "text-slate-600"}`}>{value}</span>
+    <div className="min-w-0">
+      <p className="text-[11px] uppercase text-slate-400">{label}</p>
+      <p className={`mt-0.5 truncate text-xs ${strong ? "font-semibold text-ink" : "font-medium text-slate-600"}`}>{value}</p>
     </div>
   );
 }
