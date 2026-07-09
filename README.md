@@ -6,7 +6,7 @@ Atlas is a single-user workout data platform that syncs Hevy workout data into P
 
 - Sync Hevy workout history into local PostgreSQL.
 - Browse synced workouts in a split-view explorer with search, date range, muscle filters, grouped workout history, and a Coach Card preview.
-- Browse read-only Hevy routines.
+- Browse read-only Hevy routines as a training-template board with compact composition cards and expandable movement detail.
 - View dashboard analytics:
   - total workouts
   - workouts this month
@@ -16,7 +16,7 @@ Atlas is a single-user workout data platform that syncs Hevy workout data into P
   - current-week training heatmap
   - date-filtered workout summary with empty state for days without synced workouts
 - Use Lucide icons throughout dashboard and workout previews to make stats, filters, and sections easier to scan.
-- Trigger sync from the UI. Sync results show as a temporary top-center toast instead of shifting the page layout.
+- Trigger sync from the UI. Sync refreshes dashboard, workouts, exercises, and routines; results show as a temporary top-center toast instead of shifting the page layout.
 
 ## Structure
 
@@ -122,6 +122,12 @@ Atlas stores Hevy template metadata locally in `exercise_template_metadata`, so 
 Dashboard and Workouts muscle focus now use the same weighted metadata model and the same backend helper for weighted set counts. Workout detail responses include `muscleFocus` and `topLifts` from the backend, and the frontend converts weighted set counts into display percentages with a shared helper; percentages are not stored in the database.
 
 The Workouts page currently shows the first page of the filtered workout list in its split-view explorer and intentionally does not render bottom pagination controls. Its Coach Card preview uses a compact header, vertical top-lift rows, a pill-style muscle focus section, and a numbered exercise recap; the workout history panel follows the Coach Card's natural height at wide desktop sizes.
+
+Workout set labels, best-set selection, and exercise volume display are shared through `frontend/src/utils/workoutDisplay.ts`, so the Workouts preview and full exercise cards use the same calculation path.
+
+The Routines page reads directly from Hevy through the backend rather than from local routine tables. The shared Sync button invalidates the routines query after a successful sync, so routine edits made in Hevy are refreshed through the existing single Hevy refresh action.
+
+Routine cards emphasize how a template is used: inferred focus, exercise/set counts, set density, target style, rest targets, and the first planned movements. Longer routines can be expanded inline without leaving the page.
 
 Dashboard and Workouts UI polish uses the existing `lucide-react` dependency. Icons are used for stat cards, workout preview metrics, section headings, filters, and workout history metadata; no additional icon package is required.
 

@@ -1,5 +1,5 @@
 import type { ExerciseDetail } from "../../types/api";
-import { formatDuration } from "../../utils/format";
+import { exerciseVolumeKg, formatWorkoutSetLabel } from "../../utils/workoutDisplay";
 
 const MUSCLE_COLORS: Record<string, string> = {
   Back: "bg-indigo-50 text-indigo-700",
@@ -10,24 +10,8 @@ const MUSCLE_COLORS: Record<string, string> = {
   Core: "bg-slate-100 text-slate-700",
 };
 
-const setLabel = (set: ExerciseDetail["sets"][number]) => {
-  const parts: string[] = [];
-  if (set.weightKg != null && set.reps != null) parts.push(`${set.weightKg} kg x ${set.reps}`);
-  else if (set.reps != null) parts.push(`${set.reps} reps`);
-  else if (set.distanceMeters != null) parts.push(`${set.distanceMeters} m`);
-  else if (set.durationSeconds != null) parts.push(formatDuration(set.durationSeconds));
-  else parts.push(set.type);
-
-  if (set.type && set.type !== "normal") parts.push(set.type);
-  if (set.rpe != null) parts.push(`RPE ${set.rpe}`);
-  return parts.join(" · ");
-};
-
-const exerciseVolume = (exercise: ExerciseDetail) =>
-  exercise.sets.reduce((total, set) => total + (set.weightKg ?? 0) * (set.reps ?? 0), 0);
-
 export function ExerciseCard({ exercise }: { exercise: ExerciseDetail }) {
-  const volume = exerciseVolume(exercise);
+  const volume = exerciseVolumeKg(exercise);
 
   return (
     <section className="rounded-md border border-line bg-white p-4 shadow-panel">
@@ -69,7 +53,7 @@ export function ExerciseCard({ exercise }: { exercise: ExerciseDetail }) {
             key={set.id}
           >
             <span className="mr-2 text-xs font-semibold uppercase text-slate-400">Set {set.index + 1}</span>
-            {setLabel(set)}
+            {formatWorkoutSetLabel(set)}
           </span>
         ))}
       </div>

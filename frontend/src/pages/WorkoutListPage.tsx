@@ -19,9 +19,10 @@ import { ErrorState } from "../components/common/ErrorState";
 import { LoadingState } from "../components/common/LoadingState";
 import { WorkoutSortControl, type SortValue } from "../components/workouts/WorkoutSortControl";
 import { useWorkoutDetail, useWorkouts } from "../hooks/useWorkouts";
-import type { ExerciseDetail, SetDetail, WorkoutDetail, WorkoutSummary } from "../types/api";
+import type { ExerciseDetail, WorkoutSummary } from "../types/api";
 import { formatDateTime } from "../utils/format";
 import { toMuscleFocusPercentages } from "../utils/muscleFocus";
+import { bestSetForExercise, exerciseVolumeKg, formatWorkoutSetLabel } from "../utils/workoutDisplay";
 
 type DateRangeValue = "all" | "30" | "month" | "year";
 type MuscleFilterValue = "all" | "back" | "chest" | "legs" | "shoulders" | "arms" | "core";
@@ -59,23 +60,6 @@ const dateRangeParams = (range: DateRangeValue) => {
 
 const dateGroupLabel = (value: string) =>
   new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
-
-const setHighlight = (set: SetDetail) => {
-  if (set.weightKg != null && set.reps != null) return `${set.weightKg} kg x ${set.reps}`;
-  if (set.reps != null) return `${set.reps} reps`;
-  if (set.distanceMeters != null) return `${set.distanceMeters} m`;
-  if (set.durationSeconds != null) return `${Math.round(set.durationSeconds / 60)} min`;
-  if (set.rpe != null) return `RPE ${set.rpe}`;
-  return `${set.type} set`;
-};
-
-const setScore = (set: SetDetail) => {
-  const weight = set.weightKg ?? 0;
-  const reps = set.reps ?? 1;
-  const distance = set.distanceMeters ? set.distanceMeters / 100 : 0;
-  const duration = set.durationSeconds ? set.durationSeconds / 60 : 0;
-  return weight * reps || reps || distance || duration;
-};
 
 export function WorkoutListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -548,15 +532,8 @@ function PanelHeading({ icon: Icon, label }: { icon: LucideIcon; label: string }
   );
 }
 
-function bestSetForExercise(exercise: ExerciseDetail) {
-  return exercise.sets.reduce<SetDetail | null>((best, set) => {
-    if (!best) return set;
-    return setScore(set) > setScore(best) ? set : best;
-  }, null);
-}
-
 function ExercisePreviewRow({ exercise, index }: { exercise: ExerciseDetail; index: number }) {
-  const totalVolume = exercise.sets.reduce((total, set) => total + (set.weightKg ?? 0) * (set.reps ?? 0), 0);
+  const totalVolume = exerciseVolumeKg(exercise);
   const bestSet = bestSetForExercise(exercise);
   const primaryMuscle = exercise.muscleGroups[0];
   const hiddenMuscleCount = Math.max(exercise.muscleGroups.length - 1, 0);
@@ -579,7 +556,7 @@ function ExercisePreviewRow({ exercise, index }: { exercise: ExerciseDetail; ind
         </div>
         <div className="grid grid-cols-3 gap-2 text-right">
           <GlanceMetric label="Sets" value={exercise.sets.length} />
-          <GlanceMetric label="Best" value={bestSet ? setHighlight(bestSet) : "-"} strong />
+          <GlanceMetric label="Best" value={bestSet ? formatWorkoutSetLabel(bestSet) : "-"} strong />
           <GlanceMetric label="Volume" value={totalVolume ? `${Math.round(totalVolume)} kg` : "-"} />
         </div>
       </div>
@@ -587,7 +564,7 @@ function ExercisePreviewRow({ exercise, index }: { exercise: ExerciseDetail; ind
         {exercise.sets.map((set) => (
           <span className="inline-flex items-center rounded bg-paper px-2 py-1 text-xs text-slate-600" key={set.id}>
             <span className="mr-1.5 font-semibold text-slate-400">S{set.index + 1}</span>
-            {setHighlight(set)}
+            {formatWorkoutSetLabel(set)}
           </span>
         ))}
       </div>

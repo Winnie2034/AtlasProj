@@ -87,13 +87,14 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - `frontend/src/pages/DashboardPage.tsx` - dashboard analytics UI.
 - `frontend/src/pages/WorkoutListPage.tsx` - split-view Workouts explorer with search, date range, muscle filters, grouped workout history, measured panel alignment, and Coach Card selected-workout preview.
 - `frontend/src/components/workouts/ExerciseCard.tsx` - full workout detail exercise card with header metrics and compact set pills.
+- `frontend/src/utils/workoutDisplay.ts` - shared frontend workout set labels, best-set selection, and exercise volume display used by Workouts preview rows and full exercise cards.
 - `frontend/src/components/dashboard/CurrentWeekHeatmap.tsx` - compact current-week training heatmap shown beside the radar.
 - `frontend/src/components/dashboard/TodayWorkoutCard.tsx` - bottom dashboard panel with a date picker, selected-date workout summary, and no-workout empty state.
 - `frontend/src/components/dashboard/WeeklyMuscleRadarChart.tsx` - weekly radar chart for percentage muscle distribution.
 - `frontend/src/components/dashboard/StatCard.tsx` - reusable dashboard stat card with Lucide icon support.
 - `frontend/src/components/settings/SyncButton.tsx` - sync trigger and top-center result toast.
 - `frontend/src/pages/RoutinesPage.tsx` - read-only routines UI.
-- `frontend/src/components/routines/RoutineCard.tsx` - routine detail card UI.
+- `frontend/src/components/routines/RoutineCard.tsx` - training-template routine card with inferred focus, composition metrics, movement preview, and expandable full detail.
 - `frontend/src/pages/SettingsPage.tsx` - sync UI entry point.
 - `frontend/src/utils/muscleFocus.ts` - shared frontend helper that converts live muscle set counts into display percentages.
 - `hevy-api-architecture-overview.md` - local Hevy API reference summary used for endpoint/schema alignment.
@@ -118,9 +119,12 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - backend exposes `GET /api/routines`.
   - backend currently calls Hevy at `/v1/routines?page=...&pageSize=...`.
   - backend also calls `/v1/routine_folders?page=...&pageSize=...` so routines can display their Hevy folder name.
+  - routines are not stored in local routine tables; `GET /api/routines` reads from Hevy through the backend and only seeds missing exercise template metadata.
+  - the shared frontend Sync button invalidates the `["routines"]` query on success, so Dashboard and Settings sync actions refresh the Routines page through the same Hevy refresh flow.
   - routine folder lookup is optional; if Hevy rejects that endpoint or its response shape changes, routines still load without folder labels.
   - frontend route is `/routines`, linked from the sidebar.
-  - routine cards show folder, exercises, planned sets, rest, reps, weight, distance, duration, and RPE where available.
+  - routine cards are shown as a training-template board with inferred focus, exercise/set counts, set density, target style, rest targets, movement previews, and expandable full detail.
+  - routine movement rows show planned sets, rest, reps, weight, distance, duration, and RPE where available.
   - routine response validation is intentionally tolerant: accepts `{ routines: [...] }`, `{ data: [...] }`, or a raw array.
   - routine pagination now preserves and uses Hevy's `page_count` when available, falling back to page-size length checks otherwise.
   - routine set validation accepts both `type` and API-style `set_type`, normalizing to internal `type`.
@@ -155,6 +159,7 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - workout detail `muscleFocus` uses the same dashboard-style weighted metadata model: primary muscles receive 70% of each set, secondary muscles split 30%, exercises without secondary muscles count 100% toward primary, and missing metadata falls back to title classification.
   - dashboard and Workouts preview muscle-focus percentages share `frontend/src/utils/muscleFocus.ts`; percentages are not stored in PostgreSQL.
   - Dashboard and Workouts backend muscle-focus logic share `backend/src/services/muscleGroups.ts`, so summary chips, selected-workout focus, workout-detail focus, and weekly radar all use the same weighted set-count calculation.
+  - Workouts preview rows and full exercise cards share `frontend/src/utils/workoutDisplay.ts` for set labels, best-set selection, and exercise volume display.
   - full workout detail exercise cards use a header plus compact set pills instead of the older table-first layout.
   - latest Workouts verification included typecheck, build, an API detail smoke check confirming `muscleFocus`, and a 1920x1080 browser check that Workout History aligns with the Coach Card bottom.
 - Dashboard was expanded from a basic workout summary into an analytics page:
