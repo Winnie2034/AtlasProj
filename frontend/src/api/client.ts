@@ -15,12 +15,32 @@ export class ApiError extends Error {
   }
 }
 
+function isJsonResponse(res: Response) {
+  return res.headers.get("content-type")?.includes("application/json") ?? false;
+}
+
 export async function apiRequest<T>(path: string, init?: RequestInit): Promise<{ data: T; meta?: ApiMeta }> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-    ...init,
-  });
-  const body = (await res.json()) as Envelope<T>;
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      ...init,
+    });
+  } catch {
+    throw new ApiError("NETWORK_ERROR", "Atlas could not reach the local API.");
+  }
+
+  if (!isJsonResponse(res)) {
+    throw new ApiError("NETWORK_ERROR", `Atlas API returned status ${res.status}.`);
+  }
+
+  let body: Envelope<T>;
+  try {
+    body = (await res.json()) as Envelope<T>;
+  } catch {
+    throw new ApiError("NETWORK_ERROR", "Atlas API returned an unreadable response.");
+  }
+
   if (!body.success) {
     throw new ApiError(body.error.code, body.error.message);
   }

@@ -13,6 +13,10 @@ import {
 } from "./hevy.types.js";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const requestTimeoutMs = 30_000;
+const maxAttempts = 4;
+
+const isRetryableStatus = (status: number) => status === 429 || (status >= 500 && status < 600);
 
 export class HevyClient {
   constructor(
@@ -53,16 +57,41 @@ export class HevyClient {
     return this.request(`/v1/routine_folders?page=${page}&pageSize=${pageSize}`, hevyRoutineFolderPageSchema);
   }
 
+  private async fetchWithTimeout(path: string) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+    try {
+      return await fetch(`${this.baseUrl}${path}`, {
+        headers: { "api-key": this.apiKey },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   private async request<T extends z.ZodTypeAny>(path: string, schema: T, attempt = 1): Promise<z.infer<T>> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      headers: { "api-key": this.apiKey },
-    });
+    let response: Response;
+    try {
+      response = await this.fetchWithTimeout(path);
+    } catch (error) {
+      if (attempt < maxAttempts) {
+        await sleep(1000 * 2 ** (attempt - 1));
+        return this.request(path, schema, attempt + 1);
+      }
+
+      const message =
+        error instanceof Error && error.name === "AbortError"
+          ? "Hevy API request timed out"
+          : "Atlas could not reach the Hevy API";
+      throw new HevyApiError(message, "HEVY_NETWORK_ERROR", 502);
+    }
 
     if (response.status === 401) {
       throw new HevyApiError("Hevy rejected the configured API key", "HEVY_AUTH_ERROR", 502);
     }
 
-    if (response.status === 429 && attempt < 4) {
+    if (isRetryableStatus(response.status) && attempt < maxAttempts) {
       await sleep(1000 * 2 ** (attempt - 1));
       return this.request(path, schema, attempt + 1);
     }

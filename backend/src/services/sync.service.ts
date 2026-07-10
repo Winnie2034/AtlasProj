@@ -66,6 +66,7 @@ export class SyncService {
         workoutsDeleted: summary.workoutsDeleted,
         errorMessage: summary.errors.length ? JSON.stringify(summary.errors) : undefined,
       });
+      // Store the sync start time to create a safe overlap window for the next incremental sync.
       await this.settings.setJson("last_successful_sync_cursor", startedAt.toISOString());
       logger.info({ syncId: sync.id, status: summary.status }, "sync finished");
       return summary;

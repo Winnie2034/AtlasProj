@@ -115,6 +115,8 @@ git push -u origin main
 
 The Hevy integration is isolated behind `HevyClient` and validates responses with Zod. Before using real sync data, verify the live Swagger schema at `https://api.hevyapp.com/docs/` with your API access because Hevy may change response fields.
 
+Hevy requests use a 30-second timeout and retry rate-limit or transient server failures before reporting a clean API error. Frontend API calls also normalize unreachable API, non-JSON, and unreadable responses into `ApiError` so the UI can show consistent failure states.
+
 Dashboard muscle-group analytics use cached Hevy exercise template metadata for the weekly radar chart and selected-date workout summary. The radar shows weighted training stimulus across Back, Chest, Shoulders, Arms, and Legs for the selected week, skipping Core and Other.
 
 Atlas stores Hevy template metadata locally in `exercise_template_metadata`, so the dashboard does not call Hevy while rendering. During workout sync and routine loading, Atlas fetches only missing exercise template metadata and reuses cached rows afterward. The radar and today's workout muscle-focus model give the primary muscle group 70% of each set and split the remaining 30% across secondary muscles; exercises without secondary muscles count 100% toward their primary group.

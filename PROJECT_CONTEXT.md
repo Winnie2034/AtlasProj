@@ -142,6 +142,9 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - workout/routine set type accepts `set_type` and normalizes it to `type`.
   - missing/null `exercise_template_id` is converted to `"unknown"`.
   - schema errors now include the failing field path.
+- Hevy API requests now use a 30-second timeout and retry rate-limit or transient server failures before surfacing a clean Hevy API error.
+- The frontend API client now converts network failures, non-JSON responses, and unreadable JSON into consistent `ApiError` instances instead of leaking raw parsing errors into the UI.
+- The successful-sync cursor intentionally stores the sync start time, not the finish time, so the next incremental sync re-checks a safe overlap window and avoids missing mid-sync events.
 - Workouts page was redesigned from a table into a split-view explorer:
   - left pane groups workout summaries by date and shows duration, sets, exercise count, and muscle chips.
   - right pane previews the selected workout with metrics, muscle focus, top lifts, exercise preview, and a Details link.
