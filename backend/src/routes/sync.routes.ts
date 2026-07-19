@@ -1,6 +1,13 @@
 import { Router } from "express";
-import { triggerSync } from "../controllers/sync.controller.js";
+import { SyncService } from "../services/sync.service.js";
 
 export const syncRouter = Router();
+const service = new SyncService();
 
-syncRouter.post("/", triggerSync);
+syncRouter.post("/", async (_req, res, next) => {
+  try {
+    res.status(201).json({ success: true, data: await service.runSync() });
+  } catch (error) {
+    next(error);
+  }
+});

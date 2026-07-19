@@ -7,14 +7,14 @@ export interface DashboardData {
   currentStreakDays: number;
   lastSync: { startedAt: string; finishedAt: string | null; status: string } | null;
   recentWorkouts: WorkoutSummary[];
-  selectedWorkout: TodayWorkout | null;
+  selectedWorkouts: TodayWorkout[];
   muscleDistributionPerWeek: WeeklyMuscleGroupVolume[];
   trainingDays: TrainingDay[];
 }
 
 export interface SelectedWorkoutData {
   selectedDate: string;
-  selectedWorkout: TodayWorkout | null;
+  selectedWorkouts: TodayWorkout[];
 }
 
 export interface TodayWorkout {
@@ -106,12 +106,6 @@ export interface WorkoutListParams {
   sortDir?: "asc" | "desc";
   page?: number;
   pageSize?: number;
-}
-
-export interface ExerciseSummary {
-  hevyExerciseTemplateId: string;
-  title: string;
-  timesPerformed: number;
 }
 
 export interface RoutineSet {

@@ -1,7 +1,5 @@
-import cors from "cors";
 import express from "express";
 import { dashboardRouter } from "./routes/dashboard.routes.js";
-import { exercisesRouter } from "./routes/exercises.routes.js";
 import { routinesRouter } from "./routes/routines.routes.js";
 import { syncRouter } from "./routes/sync.routes.js";
 import { workoutsRouter } from "./routes/workouts.routes.js";
@@ -12,7 +10,6 @@ import { requestLogger } from "./middlewares/requestLogger.js";
 export function createApp() {
   const app = express();
 
-  app.use(cors());
   app.use(express.json());
   app.use(requestLogger);
 
@@ -23,7 +20,6 @@ export function createApp() {
   app.use("/api/dashboard", dashboardRouter);
   app.use("/api/workouts", workoutsRouter);
   app.use("/api/routines", routinesRouter);
-  app.use("/api/exercises", exercisesRouter);
   app.use("/api/sync", syncRouter);
 
   app.use(notFound);

@@ -1,5 +1,4 @@
 import { SyncButton } from "../components/settings/SyncButton";
-import { SystemInfoPanel } from "../components/settings/SystemInfoPanel";
 
 export function SettingsPage() {
   return (
@@ -11,7 +10,6 @@ export function SettingsPage() {
           <SyncButton />
         </div>
       </section>
-      <SystemInfoPanel />
     </div>
   );
 }

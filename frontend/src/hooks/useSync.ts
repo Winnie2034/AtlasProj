@@ -8,7 +8,6 @@ export function useSync() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
-      queryClient.invalidateQueries({ queryKey: ["exercises"] });
       queryClient.invalidateQueries({ queryKey: ["routines"] });
     },
   });

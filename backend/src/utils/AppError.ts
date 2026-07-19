@@ -25,9 +25,3 @@ export class HevyApiError extends AppError {
     super(message, code, httpStatus);
   }
 }
-
-export class InternalError extends AppError {
-  constructor(message = "An unexpected internal error occurred", code = "INTERNAL_ERROR") {
-    super(message, code, 500);
-  }
-}

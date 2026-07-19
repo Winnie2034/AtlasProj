@@ -85,7 +85,7 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - `backend/src/services/routines.service.ts` - read-only Hevy routines loading/serialization.
 - `backend/src/routes/routines.routes.ts` - `/api/routines` backend route.
 - `frontend/src/pages/DashboardPage.tsx` - dashboard analytics UI.
-- `frontend/src/pages/WorkoutListPage.tsx` - split-view Workouts explorer with search, date range, muscle filters, grouped workout history, measured panel alignment, and Coach Card selected-workout preview.
+- `frontend/src/pages/WorkoutListPage.tsx` - split-view Workouts explorer with search, date range, muscle filters, grouped workout history, CSS-native panel alignment, and Coach Card selected-workout preview.
 - `frontend/src/components/workouts/ExerciseCard.tsx` - full workout detail exercise card with header metrics and compact set pills.
 - `frontend/src/utils/workoutDisplay.ts` - shared frontend workout set labels, best-set selection, and exercise volume display used by Workouts preview rows and full exercise cards.
 - `frontend/src/components/dashboard/CurrentWeekHeatmap.tsx` - compact current-week training heatmap shown beside the radar.
@@ -150,7 +150,7 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - right pane previews the selected workout with metrics, muscle focus, top lifts, exercise preview, and a Details link.
   - preview metrics and section headings use existing `lucide-react` icons for easier scanning.
   - selected workout preview is now a Coach Card with compact header metrics, vertical top-lift rows, vertically stacked muscle-focus percentage pills, and numbered exercise recap rows.
-  - at wide desktop sizes, the Coach Card reports its natural height with `ResizeObserver` so Workout History lines up with the bottom of the preview without forcing extra height inside the Coach Card.
+  - at wide desktop sizes, native CSS keeps Workout History aligned with the Coach Card without JavaScript height measurement.
   - bottom pagination controls were removed; the page currently requests the first page of the filtered workout list.
   - old table/search/pagination components were deleted after the split-view explorer replaced them.
   - `/api/workouts` summaries now include `durationMinutes` and `muscleGroups`.
@@ -169,7 +169,7 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - top stat row shows total workouts, workouts this month, current streak, and last sync.
   - main chart shows weekly muscle distribution for the last 8 weeks.
   - a compact current-week heatmap sits beside the weekly muscle distribution radar.
-  - bottom panel shows a date-filtered workout summary with duration, set volume, muscle focus, top lifts, and a no-workout empty state.
+  - bottom panel shows all workouts for the selected date with duration, set volume, muscle focus, top lifts, and a no-workout empty state.
   - stat cards, chart headers, selected workout metrics, and selected workout section headings use the existing Lucide icon set.
   - the weekly radar chart is the main dashboard chart in the top analytics row.
   - the radar chart uses the last 8 weeks from `muscleDistributionPerWeek`, lets the user switch weeks, and displays percentage distribution for Back, Chest, Shoulders, Arms, and Legs only.
@@ -178,10 +178,11 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - Hevy detailed muscles are mapped into Atlas groups: chest -> Chest; shoulders -> Shoulders; biceps/triceps/forearms -> Arms; lats/upper_back/lower_back/traps/neck -> Back; quadriceps/hamstrings/glutes/calves/adductors/abductors -> Legs; abdominals -> Core.
   - Weighted model: if an exercise has secondary muscles, its primary muscle group gets 70% of each set and secondary muscles split the remaining 30%; if there are no secondary muscles, the primary group gets 100%.
   - sync results appear as a temporary top-center toast instead of a card below the Sync button.
-  - backend returns `workoutsThisMonth`, `currentStreakDays`, `muscleDistributionPerWeek`, `trainingDays`, `selectedDate`, and `selectedWorkout` from `GET /api/dashboard`.
-  - `GET /api/dashboard/selected-workout?date=YYYY-MM-DD` selects which workout date is shown in the bottom dashboard panel without refetching the whole dashboard; invalid calendar dates return validation errors.
-  - `muscleDistributionPerWeek` and `selectedWorkout.muscleFocus` use cached Hevy template metadata and fall back to the title classifier only when metadata is missing.
-  - `TodayWorkoutCard` owns its selected date with local React state and calls `useSelectedWorkout` itself, so changing the date updates only that card instead of making the whole dashboard re-render through parent state.
+  - backend returns `workoutsThisMonth`, `currentStreakDays`, `muscleDistributionPerWeek`, `trainingDays`, `selectedDate`, and `selectedWorkouts` from `GET /api/dashboard`.
+  - `GET /api/dashboard/selected-workout?date=YYYY-MM-DD` returns every workout for that date without refetching the whole dashboard; invalid calendar dates return validation errors.
+  - `muscleDistributionPerWeek` and each `selectedWorkouts[].muscleFocus` use cached Hevy template metadata and fall back to the title classifier only when metadata is missing.
+  - `TodayWorkoutCard` owns its selected date, selected-date fetch, and active workout index, so changing the date or workout updates only that card.
+  - days with multiple workouts show title-and-time switcher buttons in chronological order; single-workout and rest-day layouts stay unchanged.
   - dashboard and Workouts preview muscle-focus percentages share `frontend/src/utils/muscleFocus.ts`; percentages are not stored in PostgreSQL.
   - Dashboard selected-workout top lifts and Workouts detail top lifts share `backend/src/services/workoutMetrics.ts`.
   - verified radar implementation with `npm.cmd run typecheck`, `npm.cmd run build`, and a local browser check against `http://localhost:5173/`.

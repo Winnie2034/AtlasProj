@@ -59,7 +59,7 @@ export function DashboardPage() {
       <TodayWorkoutCard
         currentStreakDays={data.currentStreakDays}
         initialSelectedDate={data.selectedDate}
-        initialWorkout={data.selectedWorkout}
+        initialWorkouts={data.selectedWorkouts}
         lastWorkout={data.recentWorkouts[0]}
         maxDate={todayInputValue()}
       />

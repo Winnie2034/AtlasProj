@@ -6,9 +6,6 @@ import { ATLAS_MUSCLE_GROUPS, type AtlasMuscleCounts, emptyAtlasMuscleCounts, we
 import { buildTopLifts } from "./workoutMetrics.js";
 
 type DashboardWorkout = Awaited<ReturnType<WorkoutRepository["findSince"]>>[number];
-type DashboardParams = {
-  selectedDate?: Date;
-};
 
 const summarizeWorkout = (workout: Awaited<ReturnType<WorkoutRepository["findRecent"]>>[number]) => ({
   id: workout.id,
@@ -49,11 +46,9 @@ const weekLabel = (weekStart: Date) => {
 };
 
 const serializeTodayWorkout = (
-  workout: DashboardWorkout | undefined,
+  workout: DashboardWorkout,
   metadataByTemplateId: Map<string, ExerciseTemplateMetadata>,
 ) => {
-  if (!workout) return null;
-
   const counts = weightedSetCountsForExercises(workout.exercises, metadataByTemplateId);
 
   const totalSets = workout.exercises.reduce((total, exercise) => total + exercise.sets.length, 0);
@@ -163,12 +158,12 @@ export class DashboardService {
     private templateMetadata = new ExerciseTemplateMetadataRepository(),
   ) {}
 
-  async getDashboard(params: DashboardParams = {}) {
+  async getDashboard() {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const weeklyStart = startOfWeek(addDays(now, -49));
     const activityStart = startOfWeek(addDays(now, -28));
-    const selectedDate = startOfDay(params.selectedDate ?? now);
+    const selectedDate = startOfDay(now);
     const selectedDateEnd = addDays(selectedDate, 1);
 
     const [
@@ -200,8 +195,6 @@ export class DashboardService {
       ),
     );
     const metadataByTemplateId = new Map(metadata.map((row) => [row.hevyExerciseTemplateId, row]));
-    const selectedWorkout = selectedDateWorkouts[0];
-
     return {
       selectedDate: dateKey(selectedDate),
       workoutCount,
@@ -215,7 +208,7 @@ export class DashboardService {
           }
         : null,
       recentWorkouts: recentWorkouts.map(summarizeWorkout),
-      selectedWorkout: serializeTodayWorkout(selectedWorkout, metadataByTemplateId),
+      selectedWorkouts: selectedDateWorkouts.map((workout) => serializeTodayWorkout(workout, metadataByTemplateId)),
       muscleDistributionPerWeek: buildWeeklyMuscleDistributionSeries(
         analyticsWorkouts,
         weeklyStart,
@@ -230,17 +223,20 @@ export class DashboardService {
     const dayStart = startOfDay(selectedDate);
     const dayEnd = addDays(dayStart, 1);
     const selectedDateWorkouts = await this.workouts.findBetween(dayStart, dayEnd);
-    const selectedWorkout = selectedDateWorkouts[0];
     const metadata = await this.templateMetadata.findByTemplateIds(
-      selectedWorkout
-        ? selectedWorkout.exercises.map((exercise) => exercise.hevyExerciseTemplateId).filter((id) => id !== "unknown")
-        : [],
+      Array.from(
+        new Set(
+          selectedDateWorkouts.flatMap((workout) =>
+            workout.exercises.map((exercise) => exercise.hevyExerciseTemplateId).filter((id) => id !== "unknown"),
+          ),
+        ),
+      ),
     );
     const metadataByTemplateId = new Map(metadata.map((row) => [row.hevyExerciseTemplateId, row]));
 
     return {
       selectedDate: dateKey(dayStart),
-      selectedWorkout: serializeTodayWorkout(selectedWorkout, metadataByTemplateId),
+      selectedWorkouts: selectedDateWorkouts.map((workout) => serializeTodayWorkout(workout, metadataByTemplateId)),
     };
   }
 }

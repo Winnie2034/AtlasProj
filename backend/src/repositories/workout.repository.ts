@@ -103,7 +103,7 @@ export class WorkoutRepository {
   findBetween(startTime: Date, endTime: Date) {
     return this.db.workout.findMany({
       where: { startTime: { gte: startTime, lt: endTime } },
-      orderBy: { startTime: "desc" },
+      orderBy: { startTime: "asc" },
       include: { exercises: { include: { sets: true } } },
     });
   }

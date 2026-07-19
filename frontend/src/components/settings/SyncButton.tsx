@@ -20,9 +20,14 @@ export function SyncButton() {
   const [isToastVisible, setIsToastVisible] = useState(false);
 
   useEffect(() => {
-    if (!result) return;
+    const nextToast: SyncToast | null = result
+      ? { type: "success", result }
+      : sync.isError
+        ? { type: "error", message: sync.error.message }
+        : null;
+    if (!nextToast) return;
 
-    setToast({ type: "success", result });
+    setToast(nextToast);
     setIsToastVisible(true);
 
     const fadeTimer = window.setTimeout(() => setIsToastVisible(false), 4200);
@@ -32,22 +37,7 @@ export function SyncButton() {
       window.clearTimeout(fadeTimer);
       window.clearTimeout(removeTimer);
     };
-  }, [result]);
-
-  useEffect(() => {
-    if (!sync.isError) return;
-
-    setToast({ type: "error", message: sync.error.message });
-    setIsToastVisible(true);
-
-    const fadeTimer = window.setTimeout(() => setIsToastVisible(false), 4200);
-    const removeTimer = window.setTimeout(() => setToast(null), 4700);
-
-    return () => {
-      window.clearTimeout(fadeTimer);
-      window.clearTimeout(removeTimer);
-    };
-  }, [sync.error?.message, sync.isError]);
+  }, [result, sync.error?.message, sync.isError]);
 
   return (
     <>

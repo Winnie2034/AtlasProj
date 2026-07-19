@@ -17,21 +17,23 @@ const FOCUS_COLORS: Record<string, string> = {
 };
 
 export function TodayWorkoutCard({
-  initialWorkout,
+  initialWorkouts,
   lastWorkout,
   currentStreakDays,
   initialSelectedDate,
   maxDate,
 }: {
-  initialWorkout: TodayWorkout | null;
+  initialWorkouts: TodayWorkout[];
   lastWorkout: WorkoutSummary | undefined;
   currentStreakDays: number;
   initialSelectedDate: string;
   maxDate: string;
 }) {
   const [selectedDate, setSelectedDate] = useState(initialSelectedDate);
-  const [selectedWorkout, setSelectedWorkout] = useState<TodayWorkout | null>(initialWorkout);
+  const [selectedWorkouts, setSelectedWorkouts] = useState(initialWorkouts);
+  const [activeWorkoutIndex, setActiveWorkoutIndex] = useState(0);
   const [isSelectedDateLoading, setIsSelectedDateLoading] = useState(false);
+  const selectedWorkout = selectedWorkouts[activeWorkoutIndex] ?? null;
   const isToday = selectedDate === maxDate;
   const titlePrefix = isToday ? "Today's Workout" : "Selected Workout";
 
@@ -42,20 +44,22 @@ export function TodayWorkoutCard({
     }
 
     if (selectedDate === initialSelectedDate) {
-      setSelectedWorkout(initialWorkout);
+      setSelectedWorkouts(initialWorkouts);
+      setActiveWorkoutIndex(0);
       setIsSelectedDateLoading(false);
       return;
     }
 
     const controller = new AbortController();
+    setActiveWorkoutIndex(0);
     setIsSelectedDateLoading(true);
     fetchSelectedWorkout(selectedDate, controller.signal)
       .then((response) => {
-        setSelectedWorkout(response.data.selectedWorkout);
+        setSelectedWorkouts(response.data.selectedWorkouts);
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setSelectedWorkout(null);
+        setSelectedWorkouts([]);
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -64,7 +68,7 @@ export function TodayWorkoutCard({
       });
 
     return () => controller.abort();
-  }, [initialSelectedDate, initialWorkout, selectedDate]);
+  }, [initialSelectedDate, initialWorkouts, selectedDate]);
 
   if (!selectedWorkout) {
     return (
@@ -106,6 +110,28 @@ export function TodayWorkoutCard({
           </Link>
         </div>
       </div>
+
+      {selectedWorkouts.length > 1 ? (
+        <div className="mt-4 flex items-center gap-2 overflow-x-auto rounded-md bg-paper p-2">
+          <span className="shrink-0 px-2 text-xs font-semibold text-slate-500">{selectedWorkouts.length} workouts</span>
+          {selectedWorkouts.map((workout, index) => (
+            <button
+              aria-pressed={index === activeWorkoutIndex}
+              className={`focus-ring shrink-0 rounded-md px-3 py-2 text-left text-sm transition ${
+                index === activeWorkoutIndex ? "bg-river text-white" : "bg-white text-slate-600 hover:text-ink"
+              }`}
+              key={workout.id}
+              onClick={() => setActiveWorkoutIndex(index)}
+              type="button"
+            >
+              <span className="font-semibold">{workout.title}</span>
+              <span className={`ml-2 text-xs ${index === activeWorkoutIndex ? "text-white/75" : "text-slate-400"}`}>
+                {new Date(workout.startTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <Metric icon={Clock} label="Duration" value={`${selectedWorkout.durationMinutes} min`} />

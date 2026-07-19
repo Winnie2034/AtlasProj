@@ -1,6 +1,13 @@
 import { Router } from "express";
-import { listRoutines } from "../controllers/routines.controller.js";
+import { RoutinesService } from "../services/routines.service.js";
 
 export const routinesRouter = Router();
+const service = new RoutinesService();
 
-routinesRouter.get("/", listRoutines);
+routinesRouter.get("/", async (_req, res, next) => {
+  try {
+    res.json({ success: true, data: await service.list() });
+  } catch (error) {
+    next(error);
+  }
+});

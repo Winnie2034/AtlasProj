@@ -14,9 +14,9 @@ Atlas is a single-user workout data platform that syncs Hevy workout data into P
   - last sync status
   - weekly muscle distribution radar
   - current-week training heatmap
-  - date-filtered workout summary with empty state for days without synced workouts
+  - date-filtered workout summaries with a switcher for days containing multiple sessions
 - Use Lucide icons throughout dashboard and workout previews to make stats, filters, and sections easier to scan.
-- Trigger sync from the UI. Sync refreshes dashboard, workouts, exercises, and routines; results show as a temporary top-center toast instead of shifting the page layout.
+- Trigger sync from the UI. Sync refreshes dashboard, workouts, and routines; results show as a temporary top-center toast instead of shifting the page layout.
 
 ## Structure
 
@@ -121,9 +121,11 @@ Dashboard muscle-group analytics use cached Hevy exercise template metadata for 
 
 Atlas stores Hevy template metadata locally in `exercise_template_metadata`, so the dashboard does not call Hevy while rendering. During workout sync and routine loading, Atlas fetches only missing exercise template metadata and reuses cached rows afterward. The radar and today's workout muscle-focus model give the primary muscle group 70% of each set and split the remaining 30% across secondary muscles; exercises without secondary muscles count 100% toward their primary group.
 
+The dashboard selected-date card returns every workout logged on that day. When more than one session exists, title-and-time buttons switch the card metrics, muscle focus, top lifts, and Details link without refetching the full dashboard.
+
 Dashboard and Workouts muscle focus now use the same weighted metadata model and the same backend helper for weighted set counts. Workout detail responses include `muscleFocus` and `topLifts` from the backend, and the frontend converts weighted set counts into display percentages with a shared helper; percentages are not stored in the database.
 
-The Workouts page currently shows the first page of the filtered workout list in its split-view explorer and intentionally does not render bottom pagination controls. Its Coach Card preview uses a compact header, vertical top-lift rows, a pill-style muscle focus section, and a numbered exercise recap; the workout history panel follows the Coach Card's natural height at wide desktop sizes.
+The Workouts page currently shows the first page of the filtered workout list in its split-view explorer and intentionally does not render bottom pagination controls. Its Coach Card preview uses a compact header, vertical top-lift rows, a pill-style muscle focus section, and a numbered exercise recap; native CSS keeps the workout history panel aligned with the Coach Card at wide desktop sizes.
 
 Workout set labels, best-set selection, and exercise volume display are shared through `frontend/src/utils/workoutDisplay.ts`, so the Workouts preview and full exercise cards use the same calculation path.
 

@@ -1,5 +1,6 @@
-import type { SyncStatus } from "../types/api.js";
 import { prisma } from "../db/prisma.js";
+
+type SyncStatus = "running" | "success" | "partial_failure" | "failed";
 
 export class SyncHistoryRepository {
   createRunning(startedAt: Date) {

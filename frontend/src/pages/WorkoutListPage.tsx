@@ -12,7 +12,7 @@ import {
   Trophy,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { EmptyState } from "../components/common/EmptyState";
 import { ErrorState } from "../components/common/ErrorState";
@@ -102,7 +102,6 @@ export function WorkoutListPage() {
   const workoutItems = workouts.data?.data ?? [];
   const activeWorkoutId = selectedWorkoutId ?? workoutItems[0]?.id ?? "";
   const selectedWorkout = useWorkoutDetail(activeWorkoutId);
-  const [coachCardHeight, setCoachCardHeight] = useState<number | null>(null);
 
   useEffect(() => {
     if (!workoutItems.length) {
@@ -194,10 +193,9 @@ export function WorkoutListPage() {
           <WorkoutExplorerList
             activeWorkoutId={activeWorkoutId}
             onSelect={setSelectedWorkoutId}
-            panelHeight={coachCardHeight}
             workouts={workoutItems}
           />
-          <WorkoutPreview onHeightChange={setCoachCardHeight} query={selectedWorkout} />
+          <WorkoutPreview query={selectedWorkout} />
         </div>
       ) : null}
     </div>
@@ -239,12 +237,10 @@ function FilterSelect({
 function WorkoutExplorerList({
   workouts,
   activeWorkoutId,
-  panelHeight,
   onSelect,
 }: {
   workouts: WorkoutSummary[];
   activeWorkoutId: string;
-  panelHeight: number | null;
   onSelect: (id: string) => void;
 }) {
   const groups = workouts.reduce<Record<string, WorkoutSummary[]>>((items, workout) => {
@@ -254,10 +250,7 @@ function WorkoutExplorerList({
   }, {});
 
   return (
-    <section
-      className="self-start rounded-md border border-line bg-white shadow-panel lg:flex lg:h-[var(--history-panel-height)] lg:flex-col"
-      style={panelHeight ? ({ "--history-panel-height": `${panelHeight}px` } as React.CSSProperties) : undefined}
-    >
+    <section className="self-start rounded-md border border-line bg-white shadow-panel lg:flex lg:h-0 lg:min-h-full lg:flex-col">
       <div className="border-b border-line px-4 py-3">
         <h3 className="text-sm font-semibold text-ink">Workout history</h3>
         <p className="mt-1 text-xs text-slate-500">Select a session to preview it.</p>
@@ -326,39 +319,7 @@ function MuscleChips({ groups }: { groups: string[] }) {
   );
 }
 
-function WorkoutPreview({
-  query,
-  onHeightChange,
-}: {
-  query: ReturnType<typeof useWorkoutDetail>;
-  onHeightChange: (height: number | null) => void;
-}) {
-  const previewRef = useRef<HTMLElement | null>(null);
-  const measuredWorkoutId = query.data?.data?.id;
-
-  useLayoutEffect(() => {
-    const element = previewRef.current;
-    if (!element) {
-      onHeightChange(null);
-      return;
-    }
-
-    const updateHeight = () => {
-      onHeightChange(Math.ceil(element.getBoundingClientRect().height));
-    };
-
-    updateHeight();
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(element);
-    window.addEventListener("resize", updateHeight);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateHeight);
-      onHeightChange(null);
-    };
-  }, [measuredWorkoutId, onHeightChange]);
-
+function WorkoutPreview({ query }: { query: ReturnType<typeof useWorkoutDetail> }) {
   if (query.isLoading) return <LoadingState label="Loading workout preview" />;
   if (query.isError) return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
   if (!query.data?.data) return <EmptyState title="Select a workout" detail="Choose a session from the list to preview it." />;
@@ -370,7 +331,7 @@ function WorkoutPreview({
   const lifts = workout.topLifts;
 
   return (
-    <section className="self-start overflow-hidden rounded-md border border-line bg-white shadow-panel" ref={previewRef}>
+    <section className="self-start overflow-hidden rounded-md border border-line bg-white shadow-panel">
       <div className="border-b border-line bg-paper px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
