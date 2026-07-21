@@ -19,7 +19,7 @@ if ($content -match "replace_with_your_postgres_password") {
   throw "Add a real DATABASE_URL to backend\.env before starting Atlas."
 }
 
-if ($content -notmatch "^HEVY_KEY_ENCRYPTION_KEY=(?!replace_).+") {
+if (-not ($content -match "^HEVY_KEY_ENCRYPTION_KEY=(?!replace_).+")) {
   $bytes = New-Object byte[] 32
   [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
   $key = [Convert]::ToBase64String($bytes)
