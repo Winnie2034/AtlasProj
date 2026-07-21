@@ -17,7 +17,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { EmptyState } from "../components/common/EmptyState";
 import { ErrorState } from "../components/common/ErrorState";
 import { LoadingState } from "../components/common/LoadingState";
-import { WorkoutSortControl, type SortValue } from "../components/workouts/WorkoutSortControl";
 import { useWorkoutDetail, useWorkouts } from "../hooks/useWorkouts";
 import type { ExerciseDetail, WorkoutSummary } from "../types/api";
 import { formatDateTime } from "../utils/format";
@@ -26,6 +25,7 @@ import { bestSetForExercise, exerciseVolumeKg, formatWorkoutSetLabel } from "../
 
 type DateRangeValue = "all" | "30" | "month" | "year";
 type MuscleFilterValue = "all" | "back" | "chest" | "legs" | "shoulders" | "arms" | "core";
+type SortValue = "newest" | "oldest" | "title";
 
 const MUSCLE_COLORS: Record<string, string> = {
   Back: "bg-indigo-50 text-indigo-700",
@@ -178,7 +178,16 @@ export function WorkoutListPage() {
           />
           <div className="relative">
             <SlidersHorizontal className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <WorkoutSortControl onChange={(value) => updateParam("sort", value)} value={sort} />
+            <select
+              aria-label="Sort"
+              className="focus-ring h-10 w-full rounded-md border border-line bg-paper py-2 pl-9 pr-3 text-sm text-slate-700"
+              onChange={(event) => updateParam("sort", event.target.value)}
+              value={sort}
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="title">Title</option>
+            </select>
           </div>
         </div>
       </section>

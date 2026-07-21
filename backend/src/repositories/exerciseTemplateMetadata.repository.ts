@@ -14,30 +14,31 @@ export type ExerciseTemplateMetadataInput = {
 export class ExerciseTemplateMetadataRepository {
   constructor(private db: PrismaClient = prisma) {}
 
-  findByTemplateIds(templateIds: string[]) {
+  findByTemplateIds(userId: string, templateIds: string[]) {
     return this.db.exerciseTemplateMetadata.findMany({
-      where: { hevyExerciseTemplateId: { in: templateIds } },
+      where: { userId, hevyExerciseTemplateId: { in: templateIds } },
     });
   }
 
-  findAll() {
-    return this.db.exerciseTemplateMetadata.findMany();
+  findAll(userId: string) {
+    return this.db.exerciseTemplateMetadata.findMany({ where: { userId } });
   }
 
-  async missingTemplateIds(templateIds: string[]) {
+  async missingTemplateIds(userId: string, templateIds: string[]) {
     const uniqueIds = Array.from(new Set(templateIds.filter((id) => id && id !== "unknown")));
     if (uniqueIds.length === 0) return [];
 
-    const existing = await this.findByTemplateIds(uniqueIds);
+    const existing = await this.findByTemplateIds(userId, uniqueIds);
     const existingIds = new Set(existing.map((row) => row.hevyExerciseTemplateId));
     return uniqueIds.filter((id) => !existingIds.has(id));
   }
 
-  upsert(metadata: ExerciseTemplateMetadataInput) {
+  upsert(userId: string, metadata: ExerciseTemplateMetadataInput) {
     const fetchedAt = new Date();
     return this.db.exerciseTemplateMetadata.upsert({
-      where: { hevyExerciseTemplateId: metadata.hevyExerciseTemplateId },
+      where: { userId_hevyExerciseTemplateId: { userId, hevyExerciseTemplateId: metadata.hevyExerciseTemplateId } },
       create: {
+        userId,
         ...metadata,
         fetchedAt,
       },

@@ -5,11 +5,16 @@ import { RoutinesPage } from "../pages/RoutinesPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { WorkoutDetailPage } from "../pages/WorkoutDetailPage";
 import { WorkoutListPage } from "../pages/WorkoutListPage";
+import { ProtectedRoute } from "../components/auth/ProtectedRoute";
+import { LoginPage } from "../pages/LoginPage";
+import { RegisterPage } from "../pages/RegisterPage";
 
 export const router = createBrowserRouter([
+  { path: "/login", element: <LoginPage /> },
+  { path: "/register", element: <RegisterPage /> },
   {
     path: "/",
-    element: <AppShell />,
+    element: <ProtectedRoute><AppShell /></ProtectedRoute>,
     children: [
       { index: true, element: <DashboardPage /> },
       { path: "workouts", element: <WorkoutListPage /> },

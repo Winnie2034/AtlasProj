@@ -40,7 +40,11 @@ const buildMuscleFocus = (workout: WorkoutWithExercises, metadataByTemplateId: M
     .slice(0, 4);
 };
 
-const metadataMapForWorkouts = async (workouts: WorkoutWithExercises[], metadata: ExerciseTemplateMetadataRepository) => {
+const metadataMapForWorkouts = async (
+  userId: string,
+  workouts: WorkoutWithExercises[],
+  metadata: ExerciseTemplateMetadataRepository,
+) => {
   const templateIds = Array.from(
     new Set(
       workouts.flatMap((workout) =>
@@ -48,7 +52,7 @@ const metadataMapForWorkouts = async (workouts: WorkoutWithExercises[], metadata
       ),
     ),
   );
-  const rows = await metadata.findByTemplateIds(templateIds);
+  const rows = await metadata.findByTemplateIds(userId, templateIds);
   return new Map(rows.map((row) => [row.hevyExerciseTemplateId, row]));
 };
 
@@ -74,7 +78,7 @@ export class WorkoutsService {
     private metadata = new ExerciseTemplateMetadataRepository(),
   ) {}
 
-  async list(query: Record<string, unknown>) {
+  async list(userId: string, query: Record<string, unknown>) {
     const page = Math.max(Number(query.page ?? 1), 1);
     const pageSize = Math.min(Math.max(Number(query.pageSize ?? 20), 1), 100);
     const sortBy = query.sortBy === "title" ? "title" : "startTime";
@@ -83,25 +87,25 @@ export class WorkoutsService {
     const startDate = parseDate(query.startDate, "startDate");
     const endDate = parseDate(query.endDate, "endDate");
     const muscleGroup = typeof query.muscleGroup === "string" && query.muscleGroup !== "all" ? query.muscleGroup : undefined;
-    const muscleTemplateIds = muscleGroup ? await this.templateIdsForAtlasGroup(muscleGroup) : undefined;
+    const muscleTemplateIds = muscleGroup ? await this.templateIdsForAtlasGroup(userId, muscleGroup) : undefined;
 
-    const result = await this.workouts.list({ search, startDate, endDate, muscleTemplateIds, sortBy, sortDir, page, pageSize });
-    const metadataByTemplateId = await metadataMapForWorkouts(result.items, this.metadata);
+    const result = await this.workouts.list(userId, { search, startDate, endDate, muscleTemplateIds, sortBy, sortDir, page, pageSize });
+    const metadataByTemplateId = await metadataMapForWorkouts(userId, result.items, this.metadata);
     return {
       data: result.items.map((workout) => serializeSummary(workout, metadataByTemplateId)),
       meta: { page, pageSize, total: result.total },
     };
   }
 
-  async getById(id: string) {
+  async getById(userId: string, id: string) {
     if (!id) {
       throw new ValidationError("Workout id is required");
     }
-    const workout = await this.workouts.findById(id);
+    const workout = await this.workouts.findById(userId, id);
     if (!workout) {
       throw new NotFoundError(`No workout found with id ${id}`, "WORKOUT_NOT_FOUND");
     }
-    const metadataByTemplateId = await metadataMapForWorkouts([workout], this.metadata);
+    const metadataByTemplateId = await metadataMapForWorkouts(userId, [workout], this.metadata);
 
     return {
       ...serializeSummary(workout, metadataByTemplateId),
@@ -132,9 +136,9 @@ export class WorkoutsService {
     };
   }
 
-  private async templateIdsForAtlasGroup(group: string) {
+  private async templateIdsForAtlasGroup(userId: string, group: string) {
     const normalizedGroup = group.toLowerCase();
-    const rows = await this.metadata.findAll();
+    const rows = await this.metadata.findAll(userId);
     return rows
       .filter((row) =>
         metadataMuscleGroups(row, row.title).some((muscleGroup) => muscleGroup.toLowerCase() === normalizedGroup),

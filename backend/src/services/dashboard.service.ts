@@ -1,6 +1,6 @@
 import type { ExerciseTemplateMetadata } from "@prisma/client";
+import { prisma } from "../db/prisma.js";
 import { ExerciseTemplateMetadataRepository } from "../repositories/exerciseTemplateMetadata.repository.js";
-import { SyncHistoryRepository } from "../repositories/syncHistory.repository.js";
 import { WorkoutRepository } from "../repositories/workout.repository.js";
 import { ATLAS_MUSCLE_GROUPS, type AtlasMuscleCounts, emptyAtlasMuscleCounts, weightedSetCountsForExercises } from "./muscleGroups.js";
 import { buildTopLifts } from "./workoutMetrics.js";
@@ -154,11 +154,10 @@ const calculateCurrentStreak = (workouts: Awaited<ReturnType<WorkoutRepository["
 export class DashboardService {
   constructor(
     private workouts = new WorkoutRepository(),
-    private syncHistory = new SyncHistoryRepository(),
     private templateMetadata = new ExerciseTemplateMetadataRepository(),
   ) {}
 
-  async getDashboard() {
+  async getDashboard(userId: string) {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const weeklyStart = startOfWeek(addDays(now, -49));
@@ -176,16 +175,20 @@ export class DashboardService {
       selectedDateWorkouts,
     ] =
       await Promise.all([
-        this.workouts.countAll(),
-        this.workouts.countSince(monthStart),
-        this.syncHistory.latestFinished(),
-        this.workouts.findRecent(4),
-        this.workouts.findSince(weeklyStart),
-        this.workouts.findSince(activityStart),
-        this.workouts.findBetween(selectedDate, selectedDateEnd),
+        this.workouts.countAll(userId),
+        this.workouts.countSince(userId, monthStart),
+        prisma.syncHistory.findFirst({
+          where: { userId, finishedAt: { not: null } },
+          orderBy: { startedAt: "desc" },
+        }),
+        this.workouts.findRecent(userId, 4),
+        this.workouts.findSince(userId, weeklyStart),
+        this.workouts.findSince(userId, activityStart),
+        this.workouts.findBetween(userId, selectedDate, selectedDateEnd),
       ]);
 
     const metadata = await this.templateMetadata.findByTemplateIds(
+      userId,
       Array.from(
         new Set(
           [...analyticsWorkouts, ...selectedDateWorkouts].flatMap((workout) =>
@@ -219,11 +222,12 @@ export class DashboardService {
     };
   }
 
-  async getSelectedWorkout(selectedDate: Date) {
+  async getSelectedWorkout(userId: string, selectedDate: Date) {
     const dayStart = startOfDay(selectedDate);
     const dayEnd = addDays(dayStart, 1);
-    const selectedDateWorkouts = await this.workouts.findBetween(dayStart, dayEnd);
+    const selectedDateWorkouts = await this.workouts.findBetween(userId, dayStart, dayEnd);
     const metadata = await this.templateMetadata.findByTemplateIds(
+      userId,
       Array.from(
         new Set(
           selectedDateWorkouts.flatMap((workout) =>

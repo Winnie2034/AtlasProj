@@ -23,6 +23,7 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<{
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
+      credentials: "include",
       headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
       ...init,
     });

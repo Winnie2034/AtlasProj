@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchRoutines } from "../api/routines.api";
+import { apiRequest } from "../api/client";
+import type { Routine } from "../types/api";
 
 export function useRoutines() {
   return useQuery({
     queryKey: ["routines"],
-    queryFn: fetchRoutines,
+    queryFn: () => apiRequest<Routine[]>("/routines"),
   });
 }

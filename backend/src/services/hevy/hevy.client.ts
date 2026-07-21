@@ -2,12 +2,12 @@ import type { z } from "zod";
 import { env } from "../../config/env.js";
 import { HevyApiError } from "../../utils/AppError.js";
 import {
-  hevyExerciseTemplatesPageSchema,
   hevyExerciseTemplateResponseSchema,
   hevyWorkoutCountSchema,
   hevyWorkoutEventsPageSchema,
   hevyWorkoutPageSchema,
   hevyWorkoutResponseSchema,
+  hevyUserInfoSchema,
   hevyRoutinePageSchema,
   hevyRoutineFolderPageSchema,
 } from "./hevy.types.js";
@@ -20,9 +20,13 @@ const isRetryableStatus = (status: number) => status === 429 || (status >= 500 &
 
 export class HevyClient {
   constructor(
-    private apiKey = env.HEVY_API_KEY,
+    private apiKey: string,
     private baseUrl = env.HEVY_API_BASE_URL,
   ) {}
+
+  getUserInfo() {
+    return this.request("/v1/user/info", hevyUserInfoSchema);
+  }
 
   getWorkoutsPage(page: number, pageSize: number) {
     return this.request(`/v1/workouts?page=${page}&pageSize=${pageSize}`, hevyWorkoutPageSchema);
@@ -39,10 +43,6 @@ export class HevyClient {
   getWorkoutEventsSince(cursor: string, page: number, pageSize: number) {
     const qs = new URLSearchParams({ since: cursor, page: String(page), pageSize: String(pageSize) });
     return this.request(`/v1/workouts/events?${qs}`, hevyWorkoutEventsPageSchema);
-  }
-
-  getExerciseTemplates(page: number, pageSize: number) {
-    return this.request(`/v1/exercise_templates?page=${page}&pageSize=${pageSize}`, hevyExerciseTemplatesPageSchema);
   }
 
   getExerciseTemplateById(id: string) {

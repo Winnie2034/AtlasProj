@@ -1,11 +1,10 @@
 import { HevyClient } from "./hevy/hevy.client.js";
 import { normalizeWorkout } from "./hevy/normalize.js";
-import { SettingsRepository } from "../repositories/settings.repository.js";
-import { SyncHistoryRepository } from "../repositories/syncHistory.repository.js";
+import { prisma } from "../db/prisma.js";
 import { WorkoutRepository } from "../repositories/workout.repository.js";
 import { HevyApiError } from "../utils/AppError.js";
-import { logger } from "../utils/logger.js";
 import { ExerciseTemplateMetadataService } from "./exerciseTemplateMetadata.service.js";
+import { HevyConnectionService } from "./hevyConnection.service.js";
 
 type SyncError = { hevyWorkoutId: string; message: string };
 
@@ -21,18 +20,31 @@ type SyncSummary = {
   errors: SyncError[];
 };
 
+type SyncContext = {
+  userId: string;
+  hevy: HevyClient;
+  templateMetadata: ExerciseTemplateMetadataService;
+};
+
 export class SyncService {
   constructor(
-    private hevy = new HevyClient(),
     private workouts = new WorkoutRepository(),
-    private syncHistory = new SyncHistoryRepository(),
-    private settings = new SettingsRepository(),
-    private templateMetadata = new ExerciseTemplateMetadataService(hevy),
+    private connections = new HevyConnectionService(),
   ) {}
 
-  async runSync() {
+  async runSync(userId: string) {
     const startedAt = new Date();
-    const sync = await this.syncHistory.createRunning(startedAt);
+    const { client: hevy, connection } = await this.connections.clientForUser(userId);
+    await this.connections.beginSync(userId);
+    const context: SyncContext = {
+      userId,
+      hevy,
+      templateMetadata: new ExerciseTemplateMetadataService(userId, hevy),
+    };
+    const sync = await prisma.syncHistory.create({ data: { userId, startedAt, status: "running" } }).catch(async (error) => {
+      await this.connections.finishSync(userId, startedAt.toISOString(), false);
+      throw error;
+    });
     const summary: SyncSummary = {
       syncId: sync.id,
       status: "success" as "success" | "partial_failure" | "failed",
@@ -46,44 +58,51 @@ export class SyncService {
     };
 
     try {
-      logger.info({ syncId: sync.id }, "sync started");
-      const cursor = await this.settings.getString("last_successful_sync_cursor");
+      console.info({ syncId: sync.id }, "sync started");
+      const cursor = connection.lastSuccessfulSyncCursor;
       if (cursor) {
-        await this.runIncremental(cursor, summary);
+        await this.runIncremental(context, cursor, summary);
       } else {
-        await this.runFull(summary);
+        await this.runFull(context, summary);
       }
 
       summary.status = summary.errors.length > 0 ? "partial_failure" : "success";
       const finishedAt = new Date();
       summary.finishedAt = finishedAt.toISOString();
-      await this.syncHistory.update(sync.id, {
-        finishedAt,
-        status: summary.status,
-        workoutsFetched: summary.workoutsFetched,
-        workoutsCreated: summary.workoutsCreated,
-        workoutsUpdated: summary.workoutsUpdated,
-        workoutsDeleted: summary.workoutsDeleted,
-        errorMessage: summary.errors.length ? JSON.stringify(summary.errors) : undefined,
+      await prisma.syncHistory.updateMany({
+        where: { id: sync.id, userId },
+        data: {
+          finishedAt,
+          status: summary.status,
+          workoutsFetched: summary.workoutsFetched,
+          workoutsCreated: summary.workoutsCreated,
+          workoutsUpdated: summary.workoutsUpdated,
+          workoutsDeleted: summary.workoutsDeleted,
+          errorMessage: summary.errors.length ? JSON.stringify(summary.errors) : undefined,
+        },
       });
       // Store the sync start time to create a safe overlap window for the next incremental sync.
-      await this.settings.setJson("last_successful_sync_cursor", startedAt.toISOString());
-      logger.info({ syncId: sync.id, status: summary.status }, "sync finished");
+      await this.connections.finishSync(userId, startedAt.toISOString(), true);
+      console.info({ syncId: sync.id, status: summary.status }, "sync finished");
       return summary;
     } catch (error) {
       const finishedAt = new Date();
       summary.status = "failed";
       summary.finishedAt = finishedAt.toISOString();
-      await this.syncHistory.update(sync.id, {
-        finishedAt,
-        status: "failed",
-        workoutsFetched: summary.workoutsFetched,
-        workoutsCreated: summary.workoutsCreated,
-        workoutsUpdated: summary.workoutsUpdated,
-        workoutsDeleted: summary.workoutsDeleted,
-        errorMessage: error instanceof Error ? error.message : "Unknown sync failure",
+      await prisma.syncHistory.updateMany({
+        where: { id: sync.id, userId },
+        data: {
+          finishedAt,
+          status: "failed",
+          workoutsFetched: summary.workoutsFetched,
+          workoutsCreated: summary.workoutsCreated,
+          workoutsUpdated: summary.workoutsUpdated,
+          workoutsDeleted: summary.workoutsDeleted,
+          errorMessage: error instanceof Error ? error.message : "Unknown sync failure",
+        },
       });
-      logger.error({ syncId: sync.id, err: error }, "sync failed");
+      console.error({ syncId: sync.id, err: error }, "sync failed");
+      await this.connections.finishSync(userId, startedAt.toISOString(), false);
       if (error instanceof HevyApiError) {
         throw error;
       }
@@ -91,24 +110,24 @@ export class SyncService {
     }
   }
 
-  private async runFull(summary: SyncSummary) {
+  private async runFull(context: SyncContext, summary: SyncSummary) {
     const pageSize = 10;
-    const count = await this.hevy.getWorkoutCount();
+    const count = await context.hevy.getWorkoutCount();
     const totalPages = Math.ceil(count.count / pageSize);
 
     for (let page = 1; page <= totalPages; page += 1) {
-      const payload = await this.hevy.getWorkoutsPage(page, pageSize);
-      logger.info({ page, pageSize, count: payload.workouts.length }, "fetched Hevy workout page");
+      const payload = await context.hevy.getWorkoutsPage(page, pageSize);
+      console.info({ page, pageSize, count: payload.workouts.length }, "fetched Hevy workout page");
       for (const workout of payload.workouts) {
-        await this.saveWorkout(workout.id, async () => workout, summary);
+        await this.saveWorkout(context, workout.id, async () => workout, summary);
       }
     }
   }
 
-  private async runIncremental(cursor: string, summary: SyncSummary) {
+  private async runIncremental(context: SyncContext, cursor: string, summary: SyncSummary) {
     const pageSize = 10;
     for (let page = 1; ; page += 1) {
-      const payload = await this.hevy.getWorkoutEventsSince(cursor, page, pageSize);
+      const payload = await context.hevy.getWorkoutEventsSince(cursor, page, pageSize);
       if (payload.events.length === 0) {
         break;
       }
@@ -121,10 +140,10 @@ export class SyncService {
         }
 
         if (event.type === "deleted") {
-          const deleted = await this.workouts.deleteByHevyId(workoutId);
+          const deleted = await this.workouts.deleteByHevyId(context.userId, workoutId);
           summary.workoutsDeleted += deleted.count;
         } else {
-          await this.saveWorkout(workoutId, () => this.hevy.getWorkoutById(workoutId), summary);
+          await this.saveWorkout(context, workoutId, () => context.hevy.getWorkoutById(workoutId), summary);
         }
       }
 
@@ -135,6 +154,7 @@ export class SyncService {
   }
 
   private async saveWorkout(
+    context: SyncContext,
     hevyWorkoutId: string,
     loadWorkout: () => Promise<Parameters<typeof normalizeWorkout>[0]>,
     summary: SyncSummary,
@@ -143,17 +163,17 @@ export class SyncService {
       const workout = await loadWorkout();
       summary.workoutsFetched += 1;
       const normalized = normalizeWorkout(workout);
-      await this.templateMetadata.ensureMetadataForTemplateIds(
+      await context.templateMetadata.ensureMetadataForTemplateIds(
         normalized.exercises.map((exercise) => exercise.hevyExerciseTemplateId),
       );
-      const result = await this.workouts.upsertNormalized(normalized);
+      const result = await this.workouts.upsertNormalized(context.userId, normalized);
       if (result.action === "created") summary.workoutsCreated += 1;
       if (result.action === "updated") summary.workoutsUpdated += 1;
-      logger.info({ hevyWorkoutId, action: result.action }, "workout sync complete");
+      console.info({ hevyWorkoutId, action: result.action }, "workout sync complete");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown workout sync error";
       summary.errors.push({ hevyWorkoutId, message });
-      logger.error({ hevyWorkoutId, err: error }, "workout sync failed");
+      console.error({ hevyWorkoutId, err: error }, "workout sync failed");
     }
   }
 }

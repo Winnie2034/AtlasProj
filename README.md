@@ -1,9 +1,11 @@
 # Atlas
 
-Atlas is a single-user workout data platform that syncs Hevy workout data into PostgreSQL, exposes it through an Express API, and renders it in a React dashboard.
+Atlas is a multi-user workout data platform that syncs each user's Hevy data into PostgreSQL, exposes it through an Express API, and renders it in a React dashboard.
 
 ## Current Features
 
+- Register and log in with an Atlas account; server-side sessions keep each user's data isolated.
+- Connect a personal Hevy API key from Settings. Keys are validated with Hevy and stored with AES-256-GCM encryption.
 - Sync Hevy workout history into local PostgreSQL.
 - Browse synced workouts in a split-view explorer with search, date range, muscle filters, grouped workout history, and a Coach Card preview.
 - Browse read-only Hevy routines as a training-template board with compact composition cards and expandable movement detail.
@@ -31,7 +33,7 @@ Run:
 powershell -ExecutionPolicy Bypass -File .\start.ps1
 ```
 
-This uses your local PostgreSQL installation, installs dependencies, runs Prisma setup, and launches the backend and frontend. If `backend/.env` does not exist, the script creates it from `backend/.env.example`; add your real `HEVY_API_KEY` before running a sync.
+This uses your local PostgreSQL installation, installs dependencies, runs Prisma setup, and launches the backend and frontend. If `backend/.env` does not exist, the script creates it from `backend/.env.example`; the startup script generates a local credential-encryption key. After registering, connect your personal Hevy API key from Settings.
 
 No Docker is required.
 
@@ -55,6 +57,8 @@ Do not commit `backend/.env`; it is intentionally ignored by Git.
 
 This project is safe to track in Git as long as local secrets stay out of commits.
 
+Never paste a Hevy API key into Markdown, source code, commits, or `backend/.env.example`. Enter it only through the Atlas Settings page; the backend encrypts it before database storage. Keep `HEVY_KEY_ENCRYPTION_KEY` only in the ignored `backend/.env` file.
+
 Tracked:
 
 - Source code
@@ -77,9 +81,10 @@ Before committing, verify the real environment file is ignored:
 
 ```powershell
 git check-ignore -v backend/.env
+git diff --cached
 ```
 
-If this prints a `.gitignore` rule, it is safe. Do not force-add `backend/.env`.
+The first command must print a `.gitignore` rule. Review the staged diff before every push and never force-add `backend/.env`.
 
 Common first commit flow:
 
@@ -114,6 +119,8 @@ git push -u origin main
 ## Notes
 
 The Hevy integration is isolated behind `HevyClient` and validates responses with Zod. Before using real sync data, verify the live Swagger schema at `https://api.hevyapp.com/docs/` with your API access because Hevy may change response fields.
+
+Workouts, exercise metadata, sync history, and sync cursors are scoped by the authenticated Atlas user. Hevy API keys are encrypted at rest with the backend-only `HEVY_KEY_ENCRYPTION_KEY`; plaintext keys are used only in backend memory for Hevy requests.
 
 Hevy requests use a 30-second timeout and retry rate-limit or transient server failures before reporting a clean API error. Frontend API calls also normalize unreachable API, non-JSON, and unreadable responses into `ApiError` so the UI can show consistent failure states.
 

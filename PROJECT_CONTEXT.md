@@ -2,15 +2,15 @@
 
 ## Purpose
 
-Atlas is a personal local workout data app for one user. It syncs workouts from the Hevy API into local PostgreSQL, exposes the data through an Express API, and displays it in a React frontend.
+Atlas is a multi-user workout data app. It syncs each authenticated user's Hevy data into PostgreSQL, exposes user-scoped data through an Express API, and displays it in a React frontend.
 
 ## Current Scope
 
-- Single-user local app only.
-- No authentication.
+- Users register and log in with email and password.
+- Server-side sessions and user-scoped database queries isolate each user's data.
 - No Docker.
-- No dynamic Hevy API key entry in the frontend.
-- Hevy API key is configured on the backend through `backend/.env`.
+- Each user connects a personal Hevy API key through Settings.
+- Hevy API keys are encrypted before database storage; `HEVY_KEY_ENCRYPTION_KEY` remains in `backend/.env`.
 - Frontend never calls Hevy directly.
 - Git is initialized locally for this project.
 - Current branch at the last check: `master`.
@@ -58,13 +58,9 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
 
 ## Hevy API
 
-The personal Hevy API key is stored in:
+Each user enters a personal Hevy API key through the authenticated Settings page. The backend validates it, encrypts it with AES-256-GCM, and stores only ciphertext and encryption metadata in PostgreSQL. Plaintext exists only briefly in backend memory while making Hevy requests.
 
-```text
-backend/.env
-```
-
-Do not build a frontend API-key input unless the user explicitly changes direction.
+Never put a real Hevy API key in source code, Markdown, `backend/.env.example`, or Git. The backend-only encryption key belongs in the ignored `backend/.env` file.
 
 ## Important Files
 
@@ -73,6 +69,11 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - `backend/.env` - local secrets/config.
 - `backend/.env.example` - safe placeholder environment template; do not put real secrets here.
 - `backend/prisma/schema.prisma` - database schema.
+- `backend/src/services/auth.service.ts` - password hashing and session lifecycle.
+- `backend/src/services/hevyConnection.service.ts` - per-user Hevy key validation, encryption, and retrieval.
+- `backend/src/utils/security.ts` - credential encryption and hashing primitives.
+- `backend/src/middlewares/auth.ts` - authenticated-request enforcement.
+- `backend/src/repositories/tenantIsolation.selfcheck.ts` - runnable user-isolation check.
 - `backend/src/services/hevy/hevy.client.ts` - Hevy HTTP client.
 - `backend/src/services/hevy/hevy.types.ts` - Hevy response validation schemas.
 - `backend/src/repositories/exerciseTemplateMetadata.repository.ts` - local cache access for Hevy exercise template muscle metadata.
@@ -95,9 +96,9 @@ Do not build a frontend API-key input unless the user explicitly changes directi
 - `frontend/src/components/settings/SyncButton.tsx` - sync trigger and top-center result toast.
 - `frontend/src/pages/RoutinesPage.tsx` - read-only routines UI.
 - `frontend/src/components/routines/RoutineCard.tsx` - training-template routine card with inferred focus, composition metrics, movement preview, and expandable full detail.
-- `frontend/src/pages/SettingsPage.tsx` - sync UI entry point.
+- `frontend/src/pages/LoginPage.tsx` and `frontend/src/pages/RegisterPage.tsx` - account entry points.
+- `frontend/src/pages/SettingsPage.tsx` - sync and personal Hevy connection entry point.
 - `frontend/src/utils/muscleFocus.ts` - shared frontend helper that converts live muscle set counts into display percentages.
-- `hevy-api-architecture-overview.md` - local Hevy API reference summary used for endpoint/schema alignment.
 - `.gitignore` - keeps local secrets, dependencies, build output, and Codex metadata out of Git.
 
 ## Recent Fixes / Gotchas
@@ -106,7 +107,7 @@ Do not build a frontend API-key input unless the user explicitly changes directi
   - Git was initialized in `C:\Users\walec\Documents\Codex\2026-07-05\und`.
   - Last known branch after `git init` was `master`.
   - Remote at the last check: `origin -> https://github.com/Winnie2034/AtlasProj.git`.
-  - `backend/.env` is ignored and should contain the real local `DATABASE_URL` and `HEVY_API_KEY`.
+  - `backend/.env` is ignored and should contain the real local `DATABASE_URL` and `HEVY_KEY_ENCRYPTION_KEY`.
   - `backend/.env.example` contains placeholders only and is safe to commit.
   - `README.md` and this context file no longer contain the real PostgreSQL password or Hevy API key.
   - `scripts/dev-local.ps1` now reads database connection details from `backend/.env` instead of hardcoding the local password.
@@ -249,9 +250,12 @@ When resuming this project, first read:
 ```text
 PROJECT_CONTEXT.md
 README.md
-hevy-api-architecture-overview.md
 backend/.env.example
 scripts/dev-local.ps1
+backend/prisma/schema.prisma
+backend/src/services/auth.service.ts
+backend/src/services/hevyConnection.service.ts
+backend/src/utils/security.ts
 backend/src/services/hevy/hevy.types.ts
 backend/src/services/sync.service.ts
 backend/src/services/routines.service.ts

@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { triggerSync } from "../api/sync.api";
+import { apiRequest } from "../api/client";
+import type { SyncResult } from "../types/api";
 
 export function useSync() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: triggerSync,
+    mutationFn: () => apiRequest<SyncResult>("/sync", { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["workouts"] });

@@ -6,7 +6,7 @@ const service = new WorkoutsService();
 
 workoutsRouter.get("/", async (req, res, next) => {
   try {
-    const result = await service.list(req.query);
+    const result = await service.list(res.locals.userId, req.query);
     res.json({ success: true, data: result.data, meta: result.meta });
   } catch (error) {
     next(error);
@@ -16,7 +16,7 @@ workoutsRouter.get("/", async (req, res, next) => {
 workoutsRouter.get("/:id", async (req, res, next) => {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    res.json({ success: true, data: await service.getById(id) });
+    res.json({ success: true, data: await service.getById(res.locals.userId, id) });
   } catch (error) {
     next(error);
   }

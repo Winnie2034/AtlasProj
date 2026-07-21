@@ -22,7 +22,7 @@ export function DashboardPage() {
 
   if (dashboard.isLoading) return <LoadingState label="Loading dashboard" />;
   if (dashboard.isError) return <ErrorState message={dashboard.error.message} onRetry={() => dashboard.refetch()} />;
-  if (!dashboard.data) return <EmptyDashboard />;
+  if (!dashboard.data) return <ErrorState message="Dashboard data is not available yet." />;
 
   const data = dashboard.data.data;
   return (
@@ -65,8 +65,4 @@ export function DashboardPage() {
       />
     </div>
   );
-}
-
-function EmptyDashboard() {
-  return <ErrorState message="Dashboard data is not available yet." />;
 }

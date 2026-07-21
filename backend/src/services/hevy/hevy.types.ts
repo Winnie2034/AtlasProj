@@ -90,6 +90,12 @@ export const hevyWorkoutCountSchema = z.preprocess((payload) => {
   return payload;
 }, z.object({ count: z.number().int() }));
 
+export const hevyUserInfoSchema = z.preprocess((payload) => {
+  if (!payload || typeof payload !== "object") return payload;
+  const body = payload as Record<string, unknown>;
+  return body.user ?? body.data ?? body;
+}, z.record(z.unknown()));
+
 export const hevyWorkoutEventSchema = z.preprocess((payload) => {
   if (!payload || typeof payload !== "object") {
     return payload;
@@ -124,10 +130,6 @@ export const hevyWorkoutEventsPageSchema = z.preprocess((payload) => {
 }, z.object({
   events: z.array(hevyWorkoutEventSchema),
 }));
-
-export const hevyExerciseTemplatesPageSchema = z.object({
-  exercise_templates: z.array(z.record(z.unknown())),
-});
 
 export const hevyExerciseTemplateSchema = z
   .object({
@@ -252,7 +254,6 @@ export const hevyRoutineFolderPageSchema = z
   }));
 
 export type HevyWorkout = z.infer<typeof hevyWorkoutSchema>;
-export type HevyWorkoutEvent = z.infer<typeof hevyWorkoutEventSchema>;
 export type HevyExerciseTemplate = z.infer<typeof hevyExerciseTemplateSchema>;
 export type HevyRoutine = z.infer<typeof hevyRoutineSchema>;
 export type HevyRoutineFolder = z.infer<typeof hevyRoutineFolderSchema>;

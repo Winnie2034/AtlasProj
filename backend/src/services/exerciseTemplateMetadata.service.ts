@@ -1,5 +1,4 @@
 import { ExerciseTemplateMetadataRepository } from "../repositories/exerciseTemplateMetadata.repository.js";
-import { logger } from "../utils/logger.js";
 import { HevyClient } from "./hevy/hevy.client.js";
 import type { HevyExerciseTemplate } from "./hevy/hevy.types.js";
 
@@ -15,12 +14,13 @@ const toMetadataInput = (template: HevyExerciseTemplate) => ({
 
 export class ExerciseTemplateMetadataService {
   constructor(
-    private hevy = new HevyClient(),
+    private userId: string,
+    private hevy: HevyClient,
     private metadata = new ExerciseTemplateMetadataRepository(),
   ) {}
 
   async ensureMetadataForTemplateIds(templateIds: string[]) {
-    const missingIds = await this.metadata.missingTemplateIds(templateIds);
+    const missingIds = await this.metadata.missingTemplateIds(this.userId, templateIds);
     if (missingIds.length === 0) {
       return { fetched: 0, failed: 0 };
     }
@@ -30,11 +30,11 @@ export class ExerciseTemplateMetadataService {
     for (const templateId of missingIds) {
       try {
         const template = (await this.hevy.getExerciseTemplateById(templateId)) as HevyExerciseTemplate;
-        await this.metadata.upsert(toMetadataInput(template));
+        await this.metadata.upsert(this.userId, toMetadataInput(template));
         fetched += 1;
       } catch (error) {
         failed += 1;
-        logger.warn({ templateId, err: error }, "exercise template metadata lookup failed; using fallback classifier");
+        console.warn({ templateId, err: error }, "exercise template metadata lookup failed; using fallback classifier");
       }
     }
 

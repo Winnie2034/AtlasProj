@@ -41,16 +41,16 @@ export type NormalizedWorkout = {
 export class WorkoutRepository {
   constructor(private db: PrismaClient = prisma) {}
 
-  countAll() {
-    return this.db.workout.count();
+  countAll(userId: string) {
+    return this.db.workout.count({ where: { userId } });
   }
 
-  countSince(startTime: Date) {
-    return this.db.workout.count({ where: { startTime: { gte: startTime } } });
+  countSince(userId: string, startTime: Date) {
+    return this.db.workout.count({ where: { userId, startTime: { gte: startTime } } });
   }
 
-  async list(params: WorkoutListParams) {
-    const where: Prisma.WorkoutWhereInput = {};
+  async list(userId: string, params: WorkoutListParams) {
+    const where: Prisma.WorkoutWhereInput = { userId };
     if (params.search) {
       where.title = { contains: params.search, mode: "insensitive" };
     }
@@ -84,33 +84,34 @@ export class WorkoutRepository {
     return { items, total };
   }
 
-  findRecent(limit = 5) {
+  findRecent(userId: string, limit = 5) {
     return this.db.workout.findMany({
+      where: { userId },
       orderBy: { startTime: "desc" },
       take: limit,
       include: { exercises: { include: { sets: true } } },
     });
   }
 
-  findSince(startTime: Date) {
+  findSince(userId: string, startTime: Date) {
     return this.db.workout.findMany({
-      where: { startTime: { gte: startTime } },
+      where: { userId, startTime: { gte: startTime } },
       orderBy: { startTime: "asc" },
       include: { exercises: { include: { sets: true } } },
     });
   }
 
-  findBetween(startTime: Date, endTime: Date) {
+  findBetween(userId: string, startTime: Date, endTime: Date) {
     return this.db.workout.findMany({
-      where: { startTime: { gte: startTime, lt: endTime } },
+      where: { userId, startTime: { gte: startTime, lt: endTime } },
       orderBy: { startTime: "asc" },
       include: { exercises: { include: { sets: true } } },
     });
   }
 
-  findById(id: string) {
-    return this.db.workout.findUnique({
-      where: { id },
+  findById(userId: string, id: string) {
+    return this.db.workout.findFirst({
+      where: { id, userId },
       include: {
         exercises: {
           orderBy: { exerciseIndex: "asc" },
@@ -120,23 +121,23 @@ export class WorkoutRepository {
     });
   }
 
-  findByHevyId(hevyId: string) {
-    return this.db.workout.findUnique({ where: { hevyId } });
+  findByHevyId(userId: string, hevyId: string) {
+    return this.db.workout.findUnique({ where: { userId_hevyId: { userId, hevyId } } });
   }
 
-  deleteByHevyId(hevyId: string) {
-    return this.db.workout.deleteMany({ where: { hevyId } });
+  deleteByHevyId(userId: string, hevyId: string) {
+    return this.db.workout.deleteMany({ where: { userId, hevyId } });
   }
 
-  async upsertNormalized(workout: NormalizedWorkout) {
-    const existing = await this.findByHevyId(workout.hevyId);
+  async upsertNormalized(userId: string, workout: NormalizedWorkout) {
+    const existing = await this.findByHevyId(userId, workout.hevyId);
     if (existing && existing.hevyUpdatedAt.getTime() === workout.hevyUpdatedAt.getTime()) {
       return { action: "skipped" as const, workout: existing };
     }
 
     const saved = await this.db.$transaction(async (tx) => {
       const row = await tx.workout.upsert({
-        where: { hevyId: workout.hevyId },
+        where: { userId_hevyId: { userId, hevyId: workout.hevyId } },
         update: {
           title: workout.title,
           description: workout.description,
@@ -146,6 +147,7 @@ export class WorkoutRepository {
           hevyUpdatedAt: workout.hevyUpdatedAt,
         },
         create: {
+          userId,
           hevyId: workout.hevyId,
           title: workout.title,
           description: workout.description,

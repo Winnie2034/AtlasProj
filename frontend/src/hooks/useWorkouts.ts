@@ -1,6 +1,13 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { fetchWorkoutById, fetchWorkouts } from "../api/workouts.api";
-import type { WorkoutListParams } from "../types/api";
+import { apiRequest } from "../api/client";
+import type { WorkoutDetail, WorkoutListParams, WorkoutSummary } from "../types/api";
+
+const fetchWorkouts = (params: WorkoutListParams) => {
+  const query = new URLSearchParams(
+    Object.entries(params).flatMap(([key, value]) => value === undefined || value === "" ? [] : [[key, String(value)]]),
+  );
+  return apiRequest<WorkoutSummary[]>(`/workouts?${query}`);
+};
 
 export function useWorkouts(params: WorkoutListParams) {
   return useQuery({
@@ -13,7 +20,7 @@ export function useWorkouts(params: WorkoutListParams) {
 export function useWorkoutDetail(id: string) {
   return useQuery({
     queryKey: ["workout", id],
-    queryFn: () => fetchWorkoutById(id),
+    queryFn: () => apiRequest<WorkoutDetail>(`/workouts/${id}`),
     enabled: Boolean(id),
   });
 }

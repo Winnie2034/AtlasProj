@@ -1,5 +1,15 @@
 export type ApiMeta = { page: number; pageSize: number; total: number };
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  displayName: string | null;
+}
+
+export interface HevyConnectionStatus {
+  connected: boolean;
+}
+
 export interface DashboardData {
   selectedDate: string;
   workoutCount: number;

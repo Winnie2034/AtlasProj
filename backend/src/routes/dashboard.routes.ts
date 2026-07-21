@@ -22,7 +22,7 @@ const parseDashboardDate = (value: unknown) => {
 
 dashboardRouter.get("/selected-workout", async (req, res, next) => {
   try {
-    res.json({ success: true, data: await service.getSelectedWorkout(parseDashboardDate(req.query.date) ?? new Date()) });
+    res.json({ success: true, data: await service.getSelectedWorkout(res.locals.userId, parseDashboardDate(req.query.date) ?? new Date()) });
   } catch (error) {
     next(error);
   }
@@ -30,7 +30,7 @@ dashboardRouter.get("/selected-workout", async (req, res, next) => {
 
 dashboardRouter.get("/", async (_req, res, next) => {
   try {
-    res.json({ success: true, data: await service.getDashboard() });
+    res.json({ success: true, data: await service.getDashboard(res.locals.userId) });
   } catch (error) {
     next(error);
   }
